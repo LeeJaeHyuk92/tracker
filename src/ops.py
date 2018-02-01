@@ -1,6 +1,6 @@
 import tensorflow as tf
 slim = tf.contrib.slim
-from .training_schedules import LONG_SCHEDULE
+from .training_schedules import POLICY
 # tensorflow wrapper
 
 # ex) conv + batch + relu
@@ -10,7 +10,7 @@ def conv_bn(input,
             filters,
             kernel=3,
             scope='conv',
-            training_schedule=LONG_SCHEDULE,
+            training_schedule=POLICY,
             trainable=True):
     """
     control filter size, kernel size, tr_schedule

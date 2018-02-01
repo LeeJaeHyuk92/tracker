@@ -5,7 +5,7 @@
 
 from __future__ import print_function
 import os
-from ..helper.BoundingBox import BoundingBox
+from src.helper.BoundingBox import BoundingBox
 from video import video
 import glob
 
@@ -13,15 +13,15 @@ import glob
 class loader_vot:
     """Helper functions for loading VOT data"""
 
-    def __init__(self, vot_folder, logger):
+    def __init__(self, vot_folder):
         """Load all the videos in the vot_folder"""
 
-        self.logger = logger
         self.vot_folder = vot_folder
         self.videos = {}
         self.annotations = {}
         if not os.path.isdir(vot_folder):
-            logger.error('{} is not a valid directory'.format(vot_folder))
+            print('{} is not a valid directory'.format(vot_folder))
+            raise Exception("not a valid directroy")
 
 
     def get_videos(self):
@@ -30,8 +30,7 @@ class loader_vot:
         :returns: returns video frames in each sub folder of vot directory
 
         """
-        
-        logger = self.logger
+
         vot_folder = self.vot_folder
         sub_vot_dirs = self.find_subfolders(vot_folder)
         for vot_sub_dir in sub_vot_dirs:
@@ -39,7 +38,7 @@ class loader_vot:
             objVid = video(video_path)
             list_of_frames = sorted(video_path)
             if not list_of_frames:
-                logger.error('vot folders should contain only .jpg images')
+                raise Exception('vot folders should contain only .jpg images')
 
             objVid.all_frames = list_of_frames
             bbox_gt_file = os.path.join(vot_folder, vot_sub_dir, 'groundtruth.txt')

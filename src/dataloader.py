@@ -1,17 +1,7 @@
-# from PY-GOTURN github page: https://github.com/nrupatunga/PY-GOTURN
-# thanks for nrupatunga
-# Date: Friday 02 June 2017 07:00:47 PM IST
-# Email: nrupatunga@whodat.com
-# Name: Nrupatunga
-# Description: loading VOT dataset
-
 import os
-import numpy as np
 import matplotlib.pyplot as plt
+from loader.loader_vot import loader_vot
 
-# data path
-
-# return img, bbox coordinate for train
 
 
 def image_reader(dir, filename):
@@ -32,7 +22,7 @@ def image_reader(dir, filename):
     bboxes = [x.strip() for x in lines]
     coor_gt = bboxes[int(filename)+1]
 
-    return image, coor_gt, etc
+    return image, coor_gt
 
 def vot_to_rect(boxes):
     """
@@ -41,3 +31,9 @@ def vot_to_rect(boxes):
     :return: rects
     """
 
+
+if __name__ == '__main__':
+    DATA_PATH = '/home/jaehyuk/code/own/tracker/data/vot2015'
+    objLoaderVot = loader_vot(DATA_PATH)
+    videos = objLoaderVot.get_videos()
+    print('test done')
