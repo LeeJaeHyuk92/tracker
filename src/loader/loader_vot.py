@@ -56,10 +56,20 @@ class loader_vot:
                     objVid.annotations.append(bbox)
             self.videos[vot_sub_dir] = [objVid.all_frames, objVid.annotations]
         return self.videos
+
+
+    def get_occlusion(self):
+        """Docstring for occlusion.
+
+        :returns: returns video frames in each sub folder of vot directory
+
+        """
+        # TODO, get occlusion label for training
+        return self.occlusion
             
 
     def find_subfolders(self, vot_folder):
-        """TODO: Docstring for find_subfolders.
+        """
 
         :vot_folder: directory for vot videos
         :returns: list of video sub directories

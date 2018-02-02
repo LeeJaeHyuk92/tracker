@@ -1,8 +1,12 @@
 import os
-from .training_schedules import LONG_SCHEDULE
+from training_schedules import POLICY
+
+
+
 
 # building network
 
+# data
 
 # train
 
