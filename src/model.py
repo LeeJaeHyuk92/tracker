@@ -56,7 +56,7 @@ class net:
         Predict final feature map
         :param ROI_coordinate: pbox_xy
         :return net_out: [_, model_size/32, model_size/32, 5]
-                       : object_score, tx, ty, tw, th ... YOLOv2
+                       : tx, ty, tw, th, object_score ... YOLOv2
         """
 
         # crop[:, xl:xr, yl:yr, :]
@@ -100,9 +100,11 @@ class net:
         correlation_conv6 = tf.multiply(cimg_conv6, ROI_feature)
         correlation_conv6 = tf.reduce_sum(correlation_conv6, axis=3, keep_dims=True, name='correlation6')
         correlation = tf.concat([correlation_conv5, correlation_conv6], axis=3, name='correlation')
+        tf.summary.image("correlation", correlation, max_outputs=1)
 
         # TODO, FC or 1D conv if you want
         net_out = conv_bn(correlation, filters= 5, kernel=1, scope='conv_final', trainable=trainable)
+        tf.summary.image("objectness", correlation[:, :, :, 4], max_outputs=1)
 
         # TODO, get highest object score
         # softmax,
@@ -130,8 +132,8 @@ class net:
             momentum=training_schedule['momentum'])
 
         # TODO, Is it OK just No trainable?
-        _, pimg_conv6 = self.model_conv(pimg_resize, trainable=False, reuse=False)
-        cimg_conv5, cimg_conv6 = self.model_conv(cimg_resize, trainable=True, reuse=True)
+        _, pimg_conv6 = self.model_conv(pimg_resize, trainable=True, reuse=False)
+        cimg_conv5, cimg_conv6 = self.model_conv(cimg_resize, trainable=False, reuse=True)
 
         # TODO, ROI_coordinate
         net_out = self.model_pred(cimg_conv5, cimg_conv6, pimg_conv6, pbox_xy, trainable=True)
@@ -163,7 +165,6 @@ class net:
 
     def test(self, ckpt, pimg, cimg, etc):
         pass
-
 
     def loss(self, net_out, _confs, _coord, _areas, _upleft, _botright, training_schedule):
         """
