@@ -100,11 +100,12 @@ class net:
         correlation_conv6 = tf.multiply(cimg_conv6, ROI_feature)
         correlation_conv6 = tf.reduce_sum(correlation_conv6, axis=3, keep_dims=True, name='correlation6')
         correlation = tf.concat([correlation_conv5, correlation_conv6], axis=3, name='correlation')
-        tf.summary.image("correlation", correlation, max_outputs=1)
+        tf.summary.image("correlation_0", correlation[:, :, :, 0], max_outputs=1)
+        tf.summary.image("correlation_1", correlation[:, :, :, 1], max_outputs=1)
 
         # TODO, FC or 1D conv if you want
         net_out = conv_bn(correlation, filters= 5, kernel=1, scope='conv_final', trainable=trainable)
-        tf.summary.image("objectness", correlation[:, :, :, 4], max_outputs=1)
+        tf.summary.image("objectness", correlation[:, :, :, 4:], max_outputs=1)
 
         # TODO, get highest object score
         # softmax,

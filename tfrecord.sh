@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 
 # not string
-DATA_PATH=/home/jaehyuk/code/own/tracker/data/vot2015
-RECORD_PATH=/home/jaehyuk/code/own/tracker/data/tfrecords
+ROOT = pwd
+DATA_PATH=$ROOT/data/vot2015
+RECORD_PATH=$ROOT/data/tfrecords
 NAME=train_1_adj_sample
 
 rm %RECORD_PATH/$NAME.tfrecords

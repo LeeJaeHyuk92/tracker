@@ -45,8 +45,8 @@ POLICY = {
         'sample': 196,
     },
     'PATHS': {
-        'train': '/datahdd/workdir/jaehyuk/code/own/tracker/data/tfrecords/train_1_adj.tfrecords',
-        'validate': '/datahdd/workdir/jaehyuk/code/own/tracker/data/tfrecords/fc_val.tfrecords',
-        'sample': '/datahdd/workdir/jaehyuk/code/own/tracker/data/tfrecords/train_1_adj_sample.tfrecords',
+        'train': './data/tfrecords/train_1_adj.tfrecords',
+        'validate': './data/tfrecords/fc_val.tfrecords',
+        'sample': './data/tfrecords/train_1_adj_sample.tfrecords',
     },
 }
