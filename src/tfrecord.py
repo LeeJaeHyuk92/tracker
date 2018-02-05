@@ -148,7 +148,7 @@ def convert_dataset(FLAGS, name):
             example = tf.train.Example(features=tf.train.Features(feature={
                 'pimg_resize': _bytes_feature(pimg_resize_raw),
                 'cimg_resize': _bytes_feature(cimg_resize_raw),
-                'pbox_xy_raw': _bytes_feature(pbox_xy_raw),
+                'pbox_xy': _bytes_feature(pbox_xy_raw),
                 'confs': _bytes_feature(confs_raw),
                 'coord': _bytes_feature(coord_raw),
                 'areas': _bytes_feature(areas_raw),

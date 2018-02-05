@@ -16,7 +16,7 @@ def conv_bn(input,
     control filter size, kernel size, tr_schedule
     """
 
-    weights_regularizer = slim.l2_regularizer(training_schedule['weight_decay'])
+    weights_regularizer = slim.l2_regularizer(training_schedule['decay'])
     bn_params = {
         # Decay for the moving averages
         'decay': 0.995,
@@ -30,7 +30,7 @@ def conv_bn(input,
 
     with slim.arg_scope([slim.conv2d],
                         trainable=trainable,
-                        weights_initializer=slim.variance_scalining_initializer(),
+                        weights_initializer=slim.variance_scaling_initializer(),
                         weights_regularizer=weights_regularizer,
                         activation_fn=tf.nn.relu,
                         padding="SAME",

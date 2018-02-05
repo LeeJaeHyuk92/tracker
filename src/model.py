@@ -17,37 +17,39 @@ def expit_tensor(x):
 class net:
     """ network """
 
-    def __init__(self, net_input_size=412):
+    def __init__(self):
         self.global_step = slim.get_or_create_global_step()
-        self.net_hw = net_input_size
-        self.net_out_hw = net_input_size/32
 
 
 
 
-    def model_conv(self, image, trainable=True):
+
+
+    def model_conv(self, image, trainable=True, reuse=False):
         """
         build network before correlation
         conv6 width, height = origin/32
         """
         _, height, width, channel = image.shape.as_list()
 
-        conv_1 = conv_bn(image, filters= 64, kernel=3, scope='conv1', trainable=trainable)
-        pool_1 = slim.max_pool2d(conv_1, [2,2], 2, padding='SAME', scope='pool1')
+        with slim.arg_scope([slim.conv2d],
+                            reuse=reuse):
+            conv_1 = conv_bn(image, filters= 64, kernel=3, scope='conv1', trainable=trainable)
+            pool_1 = slim.max_pool2d(conv_1, [2,2], 2, padding='SAME', scope='pool1')
 
-        conv_2 = conv_bn(pool_1, filters= 128, kernel=3, scope='conv2', trainable=trainable)
-        pool_2 = slim.max_pool2d(conv_2, [2, 2], 2, padding='SAME', scope='pool2')
+            conv_2 = conv_bn(pool_1, filters= 128, kernel=3, scope='conv2', trainable=trainable)
+            pool_2 = slim.max_pool2d(conv_2, [2, 2], 2, padding='SAME', scope='pool2')
 
-        conv_3 = conv_bn(pool_2, filters= 256, kernel=3, scope='conv3', trainable=trainable)
-        pool_3 = slim.max_pool2d(conv_3, [2, 2], 2, padding='SAME', scope='pool3')
+            conv_3 = conv_bn(pool_2, filters= 256, kernel=3, scope='conv3', trainable=trainable)
+            pool_3 = slim.max_pool2d(conv_3, [2, 2], 2, padding='SAME', scope='pool3')
 
-        conv_4 = conv_bn(pool_3, filters= 512, kernel=3, scope='conv4', trainable=trainable)
-        pool_4 = slim.max_pool2d(conv_4, [2, 2], 2, padding='SAME', scope='pool4')
+            conv_4 = conv_bn(pool_3, filters= 512, kernel=3, scope='conv4', trainable=trainable)
+            pool_4 = slim.max_pool2d(conv_4, [2, 2], 2, padding='SAME', scope='pool4')
 
-        conv_5 = conv_bn(pool_4, filters= 64, kernel=3, scope='conv5', trainable=trainable)
-        pool_5 = slim.max_pool2d(conv_5, [2, 2], 2, padding='SAME', scope='pool5')
+            conv_5 = conv_bn(pool_4, filters= 64, kernel=3, scope='conv5', trainable=trainable)
+            pool_5 = slim.max_pool2d(conv_5, [2, 2], 2, padding='SAME', scope='pool5')
 
-        conv_6 = conv_bn(pool_5, filters= 64, kernel=3, scope='conv6', trainable=trainable)
+            conv_6 = conv_bn(pool_5, filters= 64, kernel=3, scope='conv6', trainable=trainable)
 
         return conv_5, conv_6
 
@@ -61,9 +63,10 @@ class net:
         """
 
         # crop[:, xl:xr, yl:yr, :]
-        # xl, yl, xr, yr = ROI_coordinate
-        xl = ROI_coordinate[0]
-        yl = ROI_coordinate[1]
+        # xl, yl, xr, yr = ROI_coordinate,
+        # using first' frames coordinate
+        xl = ROI_coordinate[0, 0, 0]
+        yl = ROI_coordinate[0, 0, 1]
 
         # ROI 1x1 region
         xr = xl+1
@@ -71,21 +74,22 @@ class net:
 
 
         ROI_feature = pimg_conv6[:, xl:xr, yl:yr ,:]
-        _, h, w, c = ROI_feature.shape.as_list()
-        pool_avg = slim.avg_pool2d(ROI_feature, [h, w], scope='avg_pool')
+        # TODO, if ROI is not 1x1, modify this region
+        #_, h, w, c = ROI_feature.shape.as_list()
+        #pool_avg = slim.avg_pool2d(ROI_feature, [h, w], scope='avg_pool')
 
         # TODO, correlation with high level feature
         # tf implementation https://github.com/jgorgenucsd/corr_tf
         # @tf.RegisterGradient("Correlation")
         # corr = correlation(cimg_conv6, pool_avg, ...)
         # pool_avg(pimg conv_6) should not be trainable
-        correlation_conv5 = tf.nn.conv2d(cimg_conv5, pool_avg, strides=[1, 1, 1, 1], padding='SAME', name='correlation5')
+        correlation_conv5 = tf.nn.conv2d(cimg_conv5, ROI_feature, strides=[1, 1, 1, 1], padding='SAME', name='correlation5')
         correlation_conv5 = tf.extract_image_patches(correlation_conv5,
-                                                     ksize=[1, 2, 2, 1],
+                                                     ksizes=[1, 2, 2, 1],
                                                      strides=[1, 2, 2, 1],
                                                      rates=[1, 1, 1, 1],
                                                      padding='SAME')
-        correlation_conv6 = tf.nn.conv2d(cimg_conv6, pool_avg, strides=[1, 1, 1, 1], padding='SAME', name='correlation6')
+        correlation_conv6 = tf.nn.conv2d(cimg_conv6, ROI_feature, strides=[1, 1, 1, 1], padding='SAME', name='correlation6')
         correlation = tf.concat([correlation_conv5, correlation_conv6], axis=3, name='correlation')
 
         # TODO, FC or 1D conv if you want
@@ -98,25 +102,6 @@ class net:
 
         return net_out
 
-
-    def loss(self, net_out, anchor_selected, bbox_gt, objectscore_gt, scope='loss'):
-        """
-        training pair of images(distance can be more than 1)
-        training sequence images
-        :param net_out: network output feature (size/32)
-        :param anchor_selected: anchor selected by prev object size(float64 0~1)
-        :param bbox_gt: bbox coordinate in original size (float64 0~1)
-        :param objectscore_gt: object score in net_out (float64 0~1)
-        :return: total loss
-        """
-
-        # TODO, define parameter's type and code below
-
-        # loss object score
-
-        # loss bbox param by anchor in max obj score
-
-        # otherwise ?
 
     def train(self, log_dir, training_schedule, pimg_resize, cimg_resize,
               pbox_xy, confs, coord, areas, upleft, botright, ckpt, debug=True):
@@ -136,11 +121,11 @@ class net:
             momentum=training_schedule['momentum'])
 
         # TODO, Is it OK just No trainable?
-        _, pimg_conv6 = self.model_conv(pimg_resize, trainable=False)
-        cimg_conv5, cimg_conv6 = self.model_conv(cimg_resize, trainable=True)
+        _, pimg_conv6 = self.model_conv(pimg_resize, trainable=False, reuse=False)
+        cimg_conv5, cimg_conv6 = self.model_conv(cimg_resize, trainable=True, reuse=True)
 
         # TODO, ROI_coordinate
-        net_out = self.model_pred(self, cimg_conv5, cimg_conv6, pimg_conv6, pbox_xy, trainable=True)
+        net_out = self.model_pred(cimg_conv5, cimg_conv6, pimg_conv6, pbox_xy, trainable=True)
 
         # loss
         total_loss = self.loss(net_out, confs, coord, areas, upleft, botright, training_schedule=training_schedule)
@@ -171,7 +156,7 @@ class net:
         pass
 
 
-    def loss(self, net_out, pbox, cbox, training_schedule):
+    def loss(self, net_out, _confs, _coord, _areas, _upleft, _botright, training_schedule):
         """
         from YOLOv2, link: https://github.com/thtrieu/darkflow
         """
@@ -180,31 +165,16 @@ class net:
         sconf = float(m['object_scale'])
         snoob = float(m['noobject_scale'])
         scoor = float(m['coord_scale'])
-        H, W, _ = m['out_size']
+        H, W = m['side'], m['side']
         B = m['num']
         HW = H * W  # number of grid cells
         anchors = m['anchors']
 
-        print('{} loss hyper-parameters:'.format(m['model']))
         print('\tH       = {}'.format(H))
         print('\tW       = {}'.format(W))
         print('\tbox     = {}'.format(m['num']))
         print('\tscales  = {}'.format([sconf, snoob, scoor]))
 
-        size2 = [None, HW, B]
-
-        # return the below placeholders
-        _confs = tf.placeholder(tf.float32, size2)
-        _coord = tf.placeholder(tf.float32, size2 + [4])
-        # material calculating IOU
-        _areas = tf.placeholder(tf.float32, size2)
-        _upleft = tf.placeholder(tf.float32, size2 + [2])
-        _botright = tf.placeholder(tf.float32, size2 + [2])
-
-        self.placeholders = {
-            'confs': _confs, 'coord': _coord,
-            'areas': _areas, 'upleft': _upleft, 'botright': _botright
-        }
 
         # Extract the coordinate prediction from net.out
         net_out_reshape = tf.reshape(net_out, [-1, H, W, B, (4 + 1)])

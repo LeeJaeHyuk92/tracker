@@ -1,6 +1,5 @@
 # -*- coding: utf-8 -*-
 import tensorflow as tf
-import copy
 slim = tf.contrib.slim
 
 
@@ -80,7 +79,7 @@ def __get_dataset(dataset_config, split_name):
         if split_name not in dataset_config['SIZES']:
             raise ValueError('split name %s not recognized' % split_name)
 
-        IMAGE_HEIGHT, IMAGE_WIDTH = dataset_config['height'], dataset_config['width']
+        IMAGE_HEIGHT, IMAGE_WIDTH, SIDE = dataset_config['height'], dataset_config['width'], dataset_config['side']
         reader = tf.TFRecordReader
         keys_to_features = {
             'pimg_resize': tf.FixedLenFeature((), tf.string),
@@ -103,12 +102,43 @@ def __get_dataset(dataset_config, split_name):
                 dtype=tf.float64,
                 shape=[IMAGE_HEIGHT, IMAGE_WIDTH, 3],
                 channels=3),
-            'pbox_xy': tf.example_decoder.Tensor('pbox_xy'),
-            'confs': tf.example_decoder.Tensor('confs'),
-            'coord': tf.example_decoder.Tensor('coord'),
-            'areas': tf.example_decoder.Tensor('areas'),
-            'upleft': tf.example_decoder.Tensor('upleft'),
-            'botright': tf.example_decoder.Tensor('botright'),
+            'pbox_xy': Image(
+                image_key='pbox_xy',
+                dtype=tf.int32,
+                shape=[2],
+                channels=1),
+            'confs': Image(
+                image_key='confs',
+                dtype=tf.float64,
+                shape=[SIDE*SIDE, 1],
+                channels=1),
+            'coord': Image(
+                image_key='coord',
+                dtype=tf.float64,
+                shape=[SIDE*SIDE, 1, 4],
+                channels=1),
+            'areas': Image(
+                image_key='areas',
+                dtype=tf.float64,
+                shape=[SIDE*SIDE, 1],
+                channels=1),
+            'upleft': Image(
+                image_key='upleft',
+                dtype=tf.float64,
+                shape=[SIDE*SIDE, 1, 2],
+                channels=1),
+            'botright': Image(
+                image_key='botright',
+                dtype=tf.float64,
+                shape=[SIDE*SIDE, 1, 2],
+                channels=1),
+
+            # 'pbox_xy': slim.tfexample_decoder.Tensor('pbox_xy'),
+            # 'confs': slim.tfexample_decoder.Tensor('confs'),
+            # 'coord': slim.tfexample_decoder.Tensor('coord'),
+            # 'areas': slim.tfexample_decoder.Tensor('areas'),
+            # 'upleft': slim.tfexample_decoder.Tensor('upleft'),
+            # 'botright': slim.tfexample_decoder.Tensor('botright'),
         }
         decoder = slim.tfexample_decoder.TFExampleDecoder(keys_to_features, items_to_handlers)
         return slim.dataset.Dataset(
@@ -141,15 +171,16 @@ def load_batch(dataset_config, split_name):
                                                                    'areas',
                                                                    'upleft',
                                                                    'botright'])
-        pimg_resize, cimg_resize, pbox_xy,\
+        pimg_resize, cimg_resize, \
         confs, coord, areas, upleft, botright = map(tf.to_float, [pimg_resize,
                                                                   cimg_resize,
-                                                                  pbox_xy,
                                                                   confs,
                                                                   coord,
                                                                   areas,
                                                                   upleft,
                                                                   botright])
+        pbox_xy = map(tf.to_int32, [pbox_xy])
+
         pimg_resize, cimg_resize, pbox_xy,\
         confs, coord, areas, upleft, botright = map(lambda x: tf.expand_dims(x, 0), [pimg_resize,
                                                                                      cimg_resize,

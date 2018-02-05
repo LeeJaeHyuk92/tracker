@@ -31,6 +31,7 @@ POLICY = {
     'coord_scale': 1,
     'thresh ':  .6,
     'num': 1,
+    'anchors': [6.63, 11.38],
 
     'ITEMS_TO_DESCRIPTIONS': {
         'pimg': 'A 3-channel previous image.',
@@ -45,8 +46,8 @@ POLICY = {
     },
     'BATCH_SIZE': 32,
     'PATHS': {
-        'train': './data/tfrecords/train_1_adj_sample.tfrecords',
-        'validate': './data/tfrecords/fc_val.tfrecords',
-        'sample': './data/tfrecords/train_1_adj_sample.tfrecords',
+        'train': '/home/jaehyuk/code/own/tracker/data/tfrecords/train_1_adj.tfrecords',
+        'validate': '/home/jaehyuk/code/own/tracker/data/tfrecords/fc_val.tfrecords',
+        'sample': '/home/jaehyuk/code/own/tracker/data/tfrecords/train_1_adj_sample.tfrecords',
     },
 }
