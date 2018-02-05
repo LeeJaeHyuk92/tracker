@@ -134,7 +134,7 @@ class net:
 
         # TODO, Is it OK just No trainable?
         _, pimg_conv6 = self.model_conv(pimg_resize, trainable=True, reuse=False)
-        cimg_conv5, cimg_conv6 = self.model_conv(cimg_resize, trainable=False, reuse=True)
+        cimg_conv5, cimg_conv6 = self.model_conv(cimg_resize, trainable=True, reuse=True)
 
         # TODO, ROI_coordinate
         net_out = self.model_pred(cimg_conv5, cimg_conv6, pimg_conv6, pbox_xy, trainable=True)
