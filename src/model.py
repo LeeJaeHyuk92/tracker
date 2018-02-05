@@ -18,11 +18,8 @@ class net:
     """ network """
 
     def __init__(self):
-        self.global_step = slim.get_or_create_global_step()
-
-
-
-
+        # self.global_step = slim.get_or_create_global_step()
+        self.global_step = tf.train.get_or_create_global_step()
 
 
     def model_conv(self, image, trainable=True, reuse=False):
@@ -68,7 +65,7 @@ class net:
         xl = ROI_coordinate[0, 0, 0]
         yl = ROI_coordinate[0, 0, 1]
 
-        # ROI 1x1 region
+        # TODO, ROI 1x1 region
         xr = xl+1
         yr = yl+1
 
@@ -83,13 +80,25 @@ class net:
         # @tf.RegisterGradient("Correlation")
         # corr = correlation(cimg_conv6, pool_avg, ...)
         # pool_avg(pimg conv_6) should not be trainable
-        correlation_conv5 = tf.nn.conv2d(cimg_conv5, ROI_feature, strides=[1, 1, 1, 1], padding='SAME', name='correlation5')
+
+        # correlation_conv5 = tf.nn.conv2d(cimg_conv5, ROI_feature, strides=[1, 1, 1, 1], padding='SAME', name='correlation5')
+        # correlation_conv5 = tf.extract_image_patches(correlation_conv5,
+        #                                              ksizes=[1, 2, 2, 1],
+        #                                              strides=[1, 2, 2, 1],
+        #                                              rates=[1, 1, 1, 1],
+        #                                              padding='SAME')
+        # correlation_conv6 = tf.nn.conv2d(cimg_conv6, ROI_feature, strides=[1, 1, 1, 1], padding='SAME', name='correlation6')
+        # correlation = tf.concat([correlation_conv5, correlation_conv6], axis=3, name='correlation')
+
+        correlation_conv5 = tf.multiply(cimg_conv5, ROI_feature)
+        correlation_conv5 = tf.reduce_sum(correlation_conv5, axis=3, keep_dims=True, name='correlation5')
         correlation_conv5 = tf.extract_image_patches(correlation_conv5,
                                                      ksizes=[1, 2, 2, 1],
                                                      strides=[1, 2, 2, 1],
                                                      rates=[1, 1, 1, 1],
                                                      padding='SAME')
-        correlation_conv6 = tf.nn.conv2d(cimg_conv6, ROI_feature, strides=[1, 1, 1, 1], padding='SAME', name='correlation6')
+        correlation_conv6 = tf.multiply(cimg_conv6, ROI_feature)
+        correlation_conv6 = tf.reduce_sum(correlation_conv6, axis=3, keep_dims=True, name='correlation6')
         correlation = tf.concat([correlation_conv5, correlation_conv6], axis=3, name='correlation')
 
         # TODO, FC or 1D conv if you want

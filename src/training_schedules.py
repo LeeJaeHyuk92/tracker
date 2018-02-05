@@ -10,7 +10,7 @@ POLICY = {
     'decay': 0.0005,
     'max_iter': 1200000,
 
-    'batch': 32,
+    'BATCH_SIZE': 2,
     'height': 416,
     'width': 416,
     'side': 13,
@@ -40,14 +40,13 @@ POLICY = {
         'cbox': 'cimg box x1, y1, x2, y2',
     },
     'SIZES': {
-        'train': 195,
-        'validate': 195,
-        'sample': 195,
+        'train': 196,
+        'validate': 196,
+        'sample': 196,
     },
-    'BATCH_SIZE': 32,
     'PATHS': {
-        'train': '/home/jaehyuk/code/own/tracker/data/tfrecords/train_1_adj.tfrecords',
-        'validate': '/home/jaehyuk/code/own/tracker/data/tfrecords/fc_val.tfrecords',
-        'sample': '/home/jaehyuk/code/own/tracker/data/tfrecords/train_1_adj_sample.tfrecords',
+        'train': '/datahdd/workdir/jaehyuk/code/own/tracker/data/tfrecords/train_1_adj.tfrecords',
+        'validate': '/datahdd/workdir/jaehyuk/code/own/tracker/data/tfrecords/fc_val.tfrecords',
+        'sample': '/datahdd/workdir/jaehyuk/code/own/tracker/data/tfrecords/train_1_adj_sample.tfrecords',
     },
 }
