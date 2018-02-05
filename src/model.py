@@ -55,12 +55,20 @@ class net:
     def model_pred(self, cimg_conv5, cimg_conv6, pimg_conv6, ROI_coordinate, trainable=True):
         """
         Predict final feature map
-        :param ROI_coordinate: int, topleft, botright array index value
+        :param ROI_coordinate: pbox_xy
         :return net_out: [_, model_size/32, model_size/32, 5]
                        : object_score, tx, ty, tw, th ... YOLOv2
         """
 
-        xl, yl, xr, yr = ROI_coordinate
+        # crop[:, xl:xr, yl:yr, :]
+        # xl, yl, xr, yr = ROI_coordinate
+        xl = ROI_coordinate[0]
+        yl = ROI_coordinate[1]
+
+        # ROI 1x1 region
+        xr = xl+1
+        yr = yl+1
+
 
         ROI_feature = pimg_conv6[:, xl:xr, yl:yr ,:]
         _, h, w, c = ROI_feature.shape.as_list()
@@ -110,11 +118,12 @@ class net:
 
         # otherwise ?
 
-    def train(self, log_dir, training_schedule, pimg, cimg, gt, ckpt, debug=True):
+    def train(self, log_dir, training_schedule, pimg_resize, cimg_resize,
+              pbox_xy, confs, coord, areas, upleft, botright, ckpt, debug=True):
 
         if debug:
-            tf.summary.image("pimg", pimg, max_outputs=1)
-            tf.summary.image("cimg", cimg, max_outputs=1)
+            tf.summary.image("pimg", pimg_resize, max_outputs=1)
+            tf.summary.image("cimg", cimg_resize, max_outputs=1)
 
         self.learning_rate = tf.train.piecewise_constant(
             self.global_step,
@@ -127,14 +136,14 @@ class net:
             momentum=training_schedule['momentum'])
 
         # TODO, Is it OK just No trainable?
-        _, pimg_conv6 = self.model_conv(pimg, trainable=False)
-        cimg_conv5, cimg_conv6 = self.model_conv(cimg, trainable=True)
+        _, pimg_conv6 = self.model_conv(pimg_resize, trainable=False)
+        cimg_conv5, cimg_conv6 = self.model_conv(cimg_resize, trainable=True)
 
         # TODO, ROI_coordinate
-        net_out = self.model_pred(self, cimg_conv5, cimg_conv6, pimg_conv6, ROI_coordinate, trainable=True)
+        net_out = self.model_pred(self, cimg_conv5, cimg_conv6, pimg_conv6, pbox_xy, trainable=True)
 
         # loss
-        total_loss = self.loss(net_out, gt)
+        total_loss = self.loss(net_out, confs, coord, areas, upleft, botright, training_schedule=training_schedule)
         tf.summary.scalar('loss', total_loss)
 
         train_op = slim.learning.create_train_op(total_loss, optimizer, summarize_gradients=True)
@@ -158,14 +167,16 @@ class net:
                             number_of_steps=training_schedule['max_iter'],
                             save_interval_secs=600)
 
-    def test(self, ckpt, pimg, cimg, etc...):
+    def test(self, ckpt, pimg, cimg, etc):
+        pass
 
-    def loss(self, net_out, gt):
+
+    def loss(self, net_out, pbox, cbox, training_schedule):
         """
         from YOLOv2, link: https://github.com/thtrieu/darkflow
         """
         # meta
-        m = self.meta
+        m = training_schedule
         sconf = float(m['object_scale'])
         snoob = float(m['noobject_scale'])
         scoor = float(m['coord_scale'])
@@ -178,25 +189,20 @@ class net:
         print('\tH       = {}'.format(H))
         print('\tW       = {}'.format(W))
         print('\tbox     = {}'.format(m['num']))
-        print('\tclasses = {}'.format(m['classes']))
         print('\tscales  = {}'.format([sconf, snoob, scoor]))
 
-        size1 = [None, HW, B, C]
         size2 = [None, HW, B]
 
         # return the below placeholders
-        _probs = tf.placeholder(tf.float32, size1)
         _confs = tf.placeholder(tf.float32, size2)
         _coord = tf.placeholder(tf.float32, size2 + [4])
-        # weights term for L2 loss
-        _proid = tf.placeholder(tf.float32, size1)
         # material calculating IOU
         _areas = tf.placeholder(tf.float32, size2)
         _upleft = tf.placeholder(tf.float32, size2 + [2])
         _botright = tf.placeholder(tf.float32, size2 + [2])
 
         self.placeholders = {
-            'probs': _probs, 'confs': _confs, 'coord': _coord, 'proid': _proid,
+            'confs': _confs, 'coord': _coord,
             'areas': _areas, 'upleft': _upleft, 'botright': _botright
         }
 
