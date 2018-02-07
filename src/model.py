@@ -329,12 +329,6 @@ class net:
         HW = H * W  # number of grid cells
         anchors = m['anchors']
 
-        print('\tH       = {}'.format(H))
-        print('\tW       = {}'.format(W))
-        print('\tbox     = {}'.format(m['num']))
-        print('\tscales  = {}'.format([sconf, snoob, scoor]))
-
-
         # Extract the coordinate prediction from net.out
         net_out_reshape = tf.reshape(net_out, [-1, H, W, B, (4 + 1)])
         coords = net_out_reshape[:, :, :, :, :4]
