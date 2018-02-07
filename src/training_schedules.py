@@ -42,7 +42,7 @@ POLICY = {
     'coord_scale': 1,
     'thresh ':  .6,
     'num': 1,
-    'anchors': [6.63, 11.38],
+    'anchors': [3.42, 4.41],
 
     'ITEMS_TO_DESCRIPTIONS': {
         'pimg': 'A 3-channel previous image.',
