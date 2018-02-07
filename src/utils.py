@@ -43,3 +43,17 @@ def schedule_verbose(POLICY):
     print(bcolors.WARNING + "#" * 80 + bcolors.ENDC)
     print("\n" * 2)
 
+
+def ckpt_reader(ckpt, value=False):
+    from tensorflow.python import pywrap_tensorflow
+    reader=pywrap_tensorflow.NewCheckpointReader(ckpt)
+    var_to_shape_map = reader.get_variable_to_shape_map()
+    print(bcolors.WARNING + "#" * 80 + bcolors.ENDC)
+    print(bcolors.WARNING + 'checkpoint' + bcolors.ENDC)
+    for key in sorted(var_to_shape_map):
+          print("tensor_name: ", key)
+
+          if value:
+            print(reader.get_tensor(key)) # if you look tensor value
+
+    print(bcolors.WARNING + "#" * 80 + bcolors.ENDC)
