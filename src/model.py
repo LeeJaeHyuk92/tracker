@@ -2,6 +2,7 @@ import tensorflow as tf
 from .ops import conv_bn, conv_linear
 import numpy as np
 from scipy.misc import imread, imresize
+from src.utils import bcolors
 
 slim = tf.contrib.slim
 
@@ -117,7 +118,7 @@ class net:
         tf.summary.image("correlation_1", correlation[:, :, :, 1:2], max_outputs=1)
 
         # TODO, FC or 1D conv if you want
-        net_out = conv_linear(correlation, filters= 5, kernel=1, scope='conv_final', trainable=trainable)
+        net_out = conv_linear(correlation, filters=5, kernel=1, scope='conv_final', trainable=trainable)
         tf.summary.image("objectness", correlation[:, :, :, 4:], max_outputs=1)
 
         # TODO, get highest object score
@@ -143,6 +144,7 @@ class net:
         optimizer = training_schedule['optimizer']['rmsprop'](
             learning_rate=self.learning_rate,
             decay=training_schedule['decay'],
+            epsilon=1e-8,
             momentum=training_schedule['momentum'])
 
         # TODO, Is it OK just No trainable?
@@ -163,9 +165,9 @@ class net:
         if ckpt:
             with tf.Session() as sess:
                 saver.restore(sess, ckpt)
-                print("Model restored.")
+                print(bcolors.WARNING + "Model restored." + bcolors.ENDC)
         else:
-            print("Model will be trained from scratch")
+            print(bcolors.WARNING + "Model will be trained from scratch" + bcolors.ENDC)
 
         # TODO,  tensorboard; if you want to analyze tracking result
         # if debug:
