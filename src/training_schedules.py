@@ -60,5 +60,5 @@ POLICY = {
         'validate': './data/tfrecords/fc_val.tfrecords',
         'sample': './data/tfrecords/train_1_adj_sample.tfrecords',
     },
-    'interpolation': 'bicubic'
+    'interpolation': 'bilinear'
 }
