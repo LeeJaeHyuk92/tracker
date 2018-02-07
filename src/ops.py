@@ -5,6 +5,14 @@ from .training_schedules import POLICY
 
 # ex) conv + batch + relu
 
+# https://github.com/tensorflow/tensorflow/issues/4079
+def LeakyReLU(x, leak=0.1, name="lrelu"):
+    with tf.variable_scope(name):
+        f1 = 0.5 * (1.0 + leak)
+        f2 = 0.5 * (1.0 - leak)
+        return f1 * x + f2 * abs(x)
+
+
 
 def conv_bn(input,
             filters,
@@ -32,7 +40,7 @@ def conv_bn(input,
                         trainable=trainable,
                         weights_initializer=slim.variance_scaling_initializer(),
                         weights_regularizer=weights_regularizer,
-                        activation_fn=tf.nn.leaky_relu(alpha=0.1),
+                        activation_fn=LeakyReLU,
                         padding="SAME",
                         stride=1,
                         normalizer_fn=slim.batch_norm,
