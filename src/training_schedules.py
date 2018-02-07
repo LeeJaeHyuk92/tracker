@@ -3,12 +3,23 @@ import tensorflow as tf
 # https://github.com/sampepose/flownet2-tf
 
 POLICY = {
+    # long
+    'says': 'training *long*',
     'step_values': [400000, 600000, 800000, 1000000],
     'learning_rates': [0.0001, 0.00005, 0.000025, 0.0000125, 0.00000625],
     'momentum': 0.9,
     'momentum2': 0.999,
     'decay': 0.0005,
     'max_iter': 1200000,
+
+    # # short 150 epoch
+    # 'says' : 'training *short*',
+    # 'step_values': [25000, 35000, 45000],
+    # 'learning_rates': [0.0001, 0.00001, 0.000005, 0.000001],
+    # 'momentum': 0.9,
+    # 'momentum2': 0.999,
+    # 'decay': 0.0005,
+    # 'max_iter': 80000,
 
     'BATCH_SIZE': 2,
     'height': 416,
