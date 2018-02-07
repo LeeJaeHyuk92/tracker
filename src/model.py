@@ -1,12 +1,24 @@
 import tensorflow as tf
 from .ops import conv_bn
 import numpy as np
+from scipy.misc import imread, imresize
 
 slim = tf.contrib.slim
 
 
 def expit_tensor(x):
 	return 1. / (1. + tf.exp(-x))
+
+
+def offset_map(net_out):
+    offset = np.array([np.arange(13)] * 13 * self.num_box)		# [13*5 ,13]
+    offset = np.reshape(offset, (self.num_box, 13, 13))			# [5, 13, 13]
+    offset = np.transpose(offset, (1, 2, 0))					# [13, 13, 5]
+    offset = tf.constant(offset, dtype=tf.float32)
+    offset = tf.reshape(offset, [1, 13, 13, self.num_box])
+    offset = tf.tile(offset, [tf.shape(net_out)[0], 1, 1, 1])	# [None, 13, 13, 5]
+    offset = tf.div(1. ,offset)
+    return offset
 
 
 # hyper param
@@ -27,6 +39,7 @@ class net:
         build network before correlation
         conv6 width, height = origin/32
         """
+
         _, height, width, channel = image.shape.as_list()
 
         with slim.arg_scope([slim.conv2d],
@@ -51,7 +64,7 @@ class net:
         return conv_5, conv_6
 
 
-    def model_pred(self, cimg_conv5, cimg_conv6, pimg_conv6, ROI_coordinate, trainable=True):
+    def model_pred(self, cimg_conv5, cimg_conv6, pimg_conv6, ROI_coordinate, trainable=True, test=False):
         """
         Predict final feature map
         :param ROI_coordinate: pbox_xy
@@ -100,8 +113,8 @@ class net:
         correlation_conv6 = tf.multiply(cimg_conv6, ROI_feature)
         correlation_conv6 = tf.reduce_sum(correlation_conv6, axis=3, keep_dims=True, name='correlation6')
         correlation = tf.concat([correlation_conv5, correlation_conv6], axis=3, name='correlation')
-        tf.summary.image("correlation_0", correlation[:, :, :, 0], max_outputs=1)
-        tf.summary.image("correlation_1", correlation[:, :, :, 1], max_outputs=1)
+        tf.summary.image("correlation_0", correlation[:, :, :, 0:1], max_outputs=1)
+        tf.summary.image("correlation_1", correlation[:, :, :, 1:2], max_outputs=1)
 
         # TODO, FC or 1D conv if you want
         net_out = conv_bn(correlation, filters= 5, kernel=1, scope='conv_final', trainable=trainable)
@@ -164,8 +177,143 @@ class net:
                             number_of_steps=training_schedule['max_iter'],
                             save_interval_secs=600)
 
-    def test(self, ckpt, pimg, cimg, etc):
-        pass
+    def test_sequence(self, ckpt, pimg_path, cimg_path, POLICY, pbox, out_path, video_play=True, save_image=False):
+
+        H, W = POLICY['side'], POLICY['side']
+        B = POLICY['num']
+        HW = H * W  # number of grid cells
+        anchors = POLICY['anchors']
+
+        objLoaderVot = loader_vot(FLAGS.data_dir)
+        videos = objLoaderVot.get_videos()
+        video_keys = videos.keys()
+
+        for idx in range(len(videos)):
+            video_frames = videos[video_keys[idx]][0]  # ex) bag/*.jpg list
+            annot_frames = videos[video_keys[idx]][1]  # ex) bag/groundtruth, rectangle box info
+            num_frames = min(len(video_frames), len(annot_frames))
+
+            # num_frame+1.jpg does not exist
+            for i in range(0, num_frames - 1):
+                pimg_path = video_frames[i]
+                cimg_path = video_frames[i + 1]
+                pbox = annot_frames[i]
+                cbox = annot_frames[i + 1]
+
+                # pbox
+                h, w, _ = pbox.shape
+                cellx = 1. * w / POLICY['side']
+                celly = 1. * h / POLICY['side']
+                centerx = .5 * (pbox.x1 + pbox.x2)  # xmin, xmax
+                centery = .5 * (pbox.y1 + pbox.y2)  # ymin, ymax
+                cx = centerx / cellx
+                cy = centery / celly
+                pbox_xy = np.array([np.floor(cx), np.floor(cy)], dtype=np.int32)
+
+                pimg = imread(pimg_path)
+                cimg = imread(cimg_path)
+                pimg = pimg[..., [2, 1, 0]]
+                cimg = cimg[..., [2, 1, 0]]
+                pimg_resize = imresize(pimg, [POLICY['height'], POLICY['width'], 3], POLICY['interpolation'])
+                cimg_resize = imresize(cimg, [POLICY['height'], POLICY['width'], 3], POLICY['interpolation'])
+
+                pimg_resize = pimg_resize / 255.0
+                cimg_resize = cimg_resize / 255.0
+
+                # for network input & extension for batch loader
+                pimg_resize = tf.expand_dims(pimg_resize, 0)
+                cimg_resize = tf.expand_dims(cimg_resize, 0)
+
+                _, pimg_conv6 = self.model_conv(pimg_resize, trainable=True, reuse=False)
+                cimg_conv5, cimg_conv6 = self.model_conv(cimg_resize, trainable=True, reuse=True)
+                net_out = self.model_pred(cimg_conv5, cimg_conv6, pimg_conv6, pbox_xy, trainable=True)
+
+                # calculate box
+                net_out_reshape = tf.reshape(net_out, [-1, H, W, B, (4 + 1)])
+                coords = net_out_reshape[:, :, :, :, :4]
+                coords = tf.reshape(coords, [-1, H * W, B, 4])
+                adjusted_coords_xy = expit_tensor(coords[:, :, :, 0:2])
+                adjusted_coords_wh = tf.exp(coords[:, :, :, 2:4]) * np.reshape(anchors, [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2])
+
+                adjusted_c = expit_tensor(net_out_reshape[:, :, :, :, 4])
+                adjusted_c = tf.reshape(adjusted_c, [-1, H * W, B, 1])
+
+                adjusted_net_out = tf.concat([adjusted_coords_xy, adjusted_coords_wh, adjusted_c], 3)
+
+                if i==0:
+                    saver = tf.train.Saver()
+                    with tf.Session as sess:
+                        saver.restore(sess, ckpt)
+                        adjusted_net_out = sess.run(adjusted_net_out)        # [batch, HW, B, 5]
+                else:
+                    with tf.Session as sess:
+                        adjusted_net_out = sess.run(adjusted_net_out)
+
+
+    def test_images(self, ckpt, pimg_path, cimg_path, POLICY, pbox): #, out_path, video_play=True, save_image=False):
+        '''
+        image [h, w, c] no batch
+        '''
+
+        H, W = POLICY['side'], POLICY['side']
+        B = POLICY['num']
+        HW = H * W  # number of grid cells
+        anchors = POLICY['anchors']
+
+        pimg = imread(pimg_path)
+        cimg = imread(cimg_path)
+
+        # pbox
+        h, w, _ = pimg.shape
+        cellx = 1. * w / POLICY['side']
+        celly = 1. * h / POLICY['side']
+        centerx = .5 * (pbox.x1 + pbox.x2)  # xmin, xmax
+        centery = .5 * (pbox.y1 + pbox.y2)  # ymin, ymax
+        cx = centerx / cellx
+        cy = centery / celly
+        pbox_xy = np.array([np.floor(cx), np.floor(cy)], dtype=np.int32)
+        pbox_xy = np.reshape(pbox_xy, [1, 2])
+        pbox_xy = tf.expand_dims(pbox_xy, 0)
+
+        pimg = pimg[..., [2, 1, 0]]
+        cimg = cimg[..., [2, 1, 0]]
+        pimg_resize = imresize(pimg, [POLICY['height'], POLICY['width'], 3], POLICY['interpolation'])
+        cimg_resize = imresize(cimg, [POLICY['height'], POLICY['width'], 3], POLICY['interpolation'])
+
+        pimg_resize = tf.to_float(pimg_resize / 255.0)
+        cimg_resize = tf.to_float(cimg_resize / 255.0)
+
+        pimg_resize = tf.expand_dims(pimg_resize, 0)
+        cimg_resize = tf.expand_dims(cimg_resize, 0)
+
+        _, pimg_conv6 = self.model_conv(pimg_resize, trainable=True, reuse=False)
+        cimg_conv5, cimg_conv6 = self.model_conv(cimg_resize, trainable=True, reuse=True)
+        net_out = self.model_pred(cimg_conv5, cimg_conv6, pimg_conv6, pbox_xy, trainable=True)
+
+        # calculate box
+        net_out_reshape = tf.reshape(net_out, [H, W, B, (4 + 1)])
+        coords = net_out_reshape[:, :, :, :4]
+        adjusted_coords_xy = expit_tensor(coords[:, :, :, 0:2])
+        adjusted_coords_wh = tf.exp(coords[:, :, :, 2:4]) * np.reshape(anchors, [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2])
+
+        adjusted_c = expit_tensor(net_out_reshape[:, :, :, 4:])
+
+        adjusted_net_out = tf.concat([adjusted_coords_xy, adjusted_coords_wh, adjusted_c], 3)
+
+        offset = np.array([np.arange(H)] * H * B)  # [13*5 ,13]
+        offset = np.reshape(offset, (B, H, H))  # [5, 13, 13]
+        offset = np.transpose(offset, (1, 2, 0))  # [13, 13, 5]
+        offset = tf.constant(offset, dtype=tf.float32)
+        offset = tf.reshape(offset, [13, 13, B])
+        offset = tf.tile(offset, [1, 1, 1])  # [None, 13, 13, 5]
+        offset = tf.div(1., offset)
+
+        saver = tf.train.Saver()
+        with tf.Session() as sess:
+            saver.restore(sess, ckpt)
+            adjusted_net_out = sess.run(adjusted_net_out)        # [batch, HW, B, 5]
+
+        return adjusted_net_out
 
     def loss(self, net_out, _confs, _coord, _areas, _upleft, _botright, training_schedule):
         """
@@ -238,4 +386,6 @@ class net:
         # tf.summary.scalar('{} loss'.format(m['model']), loss)
 
         return loss
+
+
 
