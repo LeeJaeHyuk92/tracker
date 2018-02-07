@@ -119,8 +119,8 @@ def convert_dataset(FLAGS, name):
             cimg = imread(cimg_path)
             pimg = pimg[..., [2, 1, 0]]
             cimg = cimg[..., [2, 1, 0]]
-            pimg_resize = imresize(pimg, [POLICY['height'], POLICY['width'], 3], 'bicubic')
-            cimg_resize = imresize(cimg, [POLICY['height'], POLICY['width'], 3], 'bicubic')
+            pimg_resize = imresize(pimg, [POLICY['height'], POLICY['width'], 3], POLICY['interpolation'])
+            cimg_resize = imresize(cimg, [POLICY['height'], POLICY['width'], 3], POLICY['interpolation'])
 
             pimg_resize = pimg_resize / 255.0
             cimg_resize = cimg_resize / 255.0
