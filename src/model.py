@@ -1,5 +1,5 @@
 import tensorflow as tf
-from .ops import conv_bn
+from .ops import conv_bn, conv_linear
 import numpy as np
 from scipy.misc import imread, imresize
 
@@ -117,7 +117,7 @@ class net:
         tf.summary.image("correlation_1", correlation[:, :, :, 1:2], max_outputs=1)
 
         # TODO, FC or 1D conv if you want
-        net_out = conv_bn(correlation, filters= 5, kernel=1, scope='conv_final', trainable=trainable)
+        net_out = conv_linear(correlation, filters= 5, kernel=1, scope='conv_final', trainable=trainable)
         tf.summary.image("objectness", correlation[:, :, :, 4:], max_outputs=1)
 
         # TODO, get highest object score
