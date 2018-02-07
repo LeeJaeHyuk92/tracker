@@ -1,9 +1,15 @@
 from training_schedules import POLICY
 from src.dataloader import load_batch
+from src.utils import schedule_verbose
 from model import net
 # DATA_PATH = '/home/jaehyuk/code/own/tracker/data/vot2015'
 
+# check POLICY
+# check load_batch, train, sample, test
+# check log_dir(slim get latest ckpt)
+
 Tracker = net()
+schedule_verbose(POLICY)
 
 # data loader
 # TODO, dimension check
