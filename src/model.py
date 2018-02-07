@@ -105,14 +105,14 @@ class net:
         # correlation = tf.concat([correlation_conv5, correlation_conv6], axis=3, name='correlation')
 
         correlation_conv5 = tf.multiply(cimg_conv5, ROI_feature)
-        correlation_conv5 = tf.reduce_sum(correlation_conv5, axis=3, keep_dims=True, name='correlation5')
+        correlation_conv5 = tf.reduce_mean(correlation_conv5, axis=3, keep_dims=True, name='correlation5')
         correlation_conv5 = tf.extract_image_patches(correlation_conv5,
                                                      ksizes=[1, 2, 2, 1],
                                                      strides=[1, 2, 2, 1],
                                                      rates=[1, 1, 1, 1],
                                                      padding='SAME')
         correlation_conv6 = tf.multiply(cimg_conv6, ROI_feature)
-        correlation_conv6 = tf.reduce_sum(correlation_conv6, axis=3, keep_dims=True, name='correlation6')
+        correlation_conv6 = tf.reduce_mean(correlation_conv6, axis=3, keep_dims=True, name='correlation6')
         correlation = tf.concat([correlation_conv5, correlation_conv6], axis=3, name='correlation')
         tf.summary.image("correlation_0", correlation[:, :, :, 0:1], max_outputs=1)
         tf.summary.image("correlation_1", correlation[:, :, :, 1:2], max_outputs=1)
