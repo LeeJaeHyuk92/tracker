@@ -1,4 +1,4 @@
-from training_schedules import POLICY
+from training_schedules import POLICY_TEST
 from src.dataloader import load_batch
 from progressbar import ProgressBar, Percentage, Bar
 from scipy.misc import imread, imresize
@@ -39,5 +39,5 @@ for idx in range(len(videos)):
         out = Tracker.test_images(ckpt=ckpt,
                                   pimg_path=pimg_path,
                                   cimg_path=cimg_path,
-                                  POLICY=POLICY,
+                                  POLICY=POLICY_TEST,
                                   pbox=pbox)

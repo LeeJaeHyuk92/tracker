@@ -67,7 +67,7 @@ class net:
         return conv_5, conv_6
 
 
-    def model_pred(self, cimg_conv5, cimg_conv6, pimg_conv6, ROI_coordinate, trainable=True, test=False):
+    def model_pred(self, cimg_conv5, cimg_conv6, pimg_conv6, ROI_coordinate, POLICY, trainable=True, test=False):
         """
         Predict final feature map
         :param ROI_coordinate: pbox_xy
@@ -78,6 +78,7 @@ class net:
         # crop[:, xl:xr, yl:yr, :]
         # xl, yl, xr, yr = ROI_coordinate,
         # using first' frames coordinate
+
         xl = ROI_coordinate[0, 0, 0]
         yl = ROI_coordinate[0, 0, 1]
 
@@ -87,6 +88,7 @@ class net:
 
 
         ROI_feature = pimg_conv6[:, xl:xr, yl:yr ,:]
+
         # TODO, if ROI is not 1x1, modify this region
         #_, h, w, c = ROI_feature.shape.as_list()
         #pool_avg = slim.avg_pool2d(ROI_feature, [h, w], scope='avg_pool')
@@ -131,6 +133,78 @@ class net:
         return net_out
 
 
+    def model_pred_train(self, cimg_conv5, cimg_conv6, pimg_conv6, ROI_coordinate, POLICY, trainable=True, test=False):
+        """
+        Predict final feature map
+        :param ROI_coordinate: pbox_xy
+        :return net_out: [_, model_size/32, model_size/32, 5]
+                       : tx, ty, tw, th, object_score ... YOLOv2
+        """
+
+        # crop[:, xl:xr, yl:yr, :]
+        # xl, yl, xr, yr = ROI_coordinate,
+        # using first' frames coordinate
+
+        # TODO, FIX, spaghetti code -_-  for 4 batch size
+        xl_0 = ROI_coordinate[0, 0, 0]
+        yl_0 = ROI_coordinate[0, 0, 1]
+        xl_1 = ROI_coordinate[1, 0, 0]
+        yl_1 = ROI_coordinate[1, 0, 1]
+        xl_2 = ROI_coordinate[2, 0, 0]
+        yl_2 = ROI_coordinate[2, 0, 1]
+        xl_3 = ROI_coordinate[3, 0, 0]
+        yl_3 = ROI_coordinate[3, 0, 1]
+
+        # TODO, FIX,spaghetti code -_- ROI 1x1 region
+        ROI_feature = tf.concat([pimg_conv6[0:1, xl_0:xl_0 + 1, yl_0:yl_0 + 1, :],
+                                 pimg_conv6[1:2, xl_1:xl_1 + 1, yl_1:yl_1 + 1, :],
+                                 pimg_conv6[2:3, xl_2:xl_2 + 1, yl_2:yl_2 + 1, :],
+                                 pimg_conv6[3:4, xl_3:xl_3 + 1, yl_3:yl_3 + 1, :]],
+                                axis=0)
+
+        # TODO, if ROI is not 1x1, modify this region
+        #_, h, w, c = ROI_feature.shape.as_list()
+        #pool_avg = slim.avg_pool2d(ROI_feature, [h, w], scope='avg_pool')
+
+        # TODO, correlation with high level feature
+        # tf implementation https://github.com/jgorgenucsd/corr_tf
+        # @tf.RegisterGradient("Correlation")
+        # corr = correlation(cimg_conv6, pool_avg, ...)
+        # pool_avg(pimg conv_6) should not be trainable
+
+        # correlation_conv5 = tf.nn.conv2d(cimg_conv5, ROI_feature, strides=[1, 1, 1, 1], padding='SAME', name='correlation5')
+        # correlation_conv5 = tf.extract_image_patches(correlation_conv5,
+        #                                              ksizes=[1, 2, 2, 1],
+        #                                              strides=[1, 2, 2, 1],
+        #                                              rates=[1, 1, 1, 1],
+        #                                              padding='SAME')
+        # correlation_conv6 = tf.nn.conv2d(cimg_conv6, ROI_feature, strides=[1, 1, 1, 1], padding='SAME', name='correlation6')
+        # correlation = tf.concat([correlation_conv5, correlation_conv6], axis=3, name='correlation')
+
+        correlation_conv5 = tf.multiply(cimg_conv5, ROI_feature)
+        correlation_conv5 = tf.reduce_mean(correlation_conv5, axis=3, keep_dims=True, name='correlation5')
+        correlation_conv5 = tf.extract_image_patches(correlation_conv5,
+                                                     ksizes=[1, 2, 2, 1],
+                                                     strides=[1, 2, 2, 1],
+                                                     rates=[1, 1, 1, 1],
+                                                     padding='SAME')
+        correlation_conv6 = tf.multiply(cimg_conv6, ROI_feature)
+        correlation_conv6 = tf.reduce_mean(correlation_conv6, axis=3, keep_dims=True, name='correlation6')
+        correlation = tf.concat([correlation_conv5, correlation_conv6], axis=3, name='correlation')
+        tf.summary.image("correlation_0", correlation[:, :, :, 0:1], max_outputs=2)
+        tf.summary.image("correlation_1", correlation[:, :, :, 1:2], max_outputs=2)
+
+        # TODO, FC or 1D conv if you want
+        net_out = conv_linear(correlation, filters=5, kernel=1, scope='conv_final', trainable=trainable)
+        tf.summary.image("objectness", correlation[:, :, :, 4:], max_outputs=2)
+
+        # TODO, get highest object score
+        # softmax,
+
+        # TODO, calculate box with ROI_coordinate
+
+        return net_out
+
     def train(self, log_dir, training_schedule, pimg_resize, cimg_resize,
               pbox_xy, confs, coord, areas, upleft, botright, ckpt, debug=True):
 
@@ -154,7 +228,7 @@ class net:
         cimg_conv5, cimg_conv6 = self.model_conv(cimg_resize, trainable=True, reuse=True)
 
         # TODO, ROI_coordinate
-        net_out = self.model_pred(cimg_conv5, cimg_conv6, pimg_conv6, pbox_xy, trainable=True)
+        net_out = self.model_pred_train(cimg_conv5, cimg_conv6, pimg_conv6, pbox_xy, POLICY=training_schedule, trainable=True)
 
         # loss
         total_loss = self.loss(net_out, confs, coord, areas, upleft, botright, training_schedule=training_schedule)
@@ -292,7 +366,7 @@ class net:
 
         _, pimg_conv6 = self.model_conv(pimg_resize, trainable=True, reuse=False)
         cimg_conv5, cimg_conv6 = self.model_conv(cimg_resize, trainable=True, reuse=True)
-        net_out = self.model_pred(cimg_conv5, cimg_conv6, pimg_conv6, pbox_xy, trainable=True)
+        net_out = self.model_pred(cimg_conv5, cimg_conv6, pimg_conv6, pbox_xy, POLICY, trainable=True)
 
         # calculate box
         net_out_reshape = tf.reshape(net_out, [H, W, B, (4 + 1)])
