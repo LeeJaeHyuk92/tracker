@@ -62,3 +62,28 @@ POLICY = {
     },
     'interpolation': 'bilinear'
 }
+
+POLICY_TEST = {
+
+    'BATCH_SIZE': 1,
+    'height': 416,
+    'width': 416,
+    'side': 13,
+    'channels': 3,
+
+    'thresh':  .6,
+    'num': 1,
+    'anchors': [3.42, 4.41],
+
+    'SIZES': {
+        'train': 196,
+        'validate': 196,
+        'sample': 196,
+    },
+    'PATHS': {
+        'train': './data/tfrecords/train_1_adj.tfrecords',
+        'validate': './data/tfrecords/fc_val.tfrecords',
+        'sample': './data/tfrecords/train_1_adj_sample.tfrecords',
+    },
+    'interpolation': 'bilinear'
+}
