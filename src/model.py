@@ -116,12 +116,12 @@ class net:
         correlation_conv6 = tf.multiply(cimg_conv6, ROI_feature)
         correlation_conv6 = tf.reduce_mean(correlation_conv6, axis=3, keep_dims=True, name='correlation6')
         correlation = tf.concat([correlation_conv5, correlation_conv6], axis=3, name='correlation')
-        tf.summary.image("correlation_0", correlation[:, :, :, 0:1], max_outputs=1)
-        tf.summary.image("correlation_1", correlation[:, :, :, 1:2], max_outputs=1)
+        tf.summary.image("correlation_0", correlation[:, :, :, 0:1], max_outputs=2)
+        tf.summary.image("correlation_1", correlation[:, :, :, 1:2], max_outputs=2)
 
         # TODO, FC or 1D conv if you want
         net_out = conv_linear(correlation, filters=5, kernel=1, scope='conv_final', trainable=trainable)
-        tf.summary.image("objectness", correlation[:, :, :, 4:], max_outputs=1)
+        tf.summary.image("objectness", correlation[:, :, :, 4:], max_outputs=2)
 
         # TODO, get highest object score
         # softmax,
@@ -135,8 +135,8 @@ class net:
               pbox_xy, confs, coord, areas, upleft, botright, ckpt, debug=True):
 
         if debug:
-            tf.summary.image("pimg", pimg_resize, max_outputs=1)
-            tf.summary.image("cimg", cimg_resize, max_outputs=1)
+            tf.summary.image("pimg", pimg_resize, max_outputs=2)
+            tf.summary.image("cimg", cimg_resize, max_outputs=2)
 
         self.learning_rate = tf.train.piecewise_constant(
             self.global_step,
