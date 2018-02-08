@@ -8,7 +8,8 @@ from model import net
 # check load_batch, train, sample, test
 # check log_dir(slim get latest ckpt)
 
-ckpt = './logs/Tracker/model.ckpt-1043223'
+# ckpt = './logs/Tracker/model.ckpt-1043223'
+ckpt = None
 log_dir = './logs/Tracker/'
 data_type = 'sample'
 
