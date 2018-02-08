@@ -145,6 +145,7 @@ class net:
         # xl, yl, xr, yr = ROI_coordinate,
         # using first' frames coordinate
 
+
         # TODO, FIX, spaghetti code -_-  for 4 batch size
         xl_0 = ROI_coordinate[0, 0, 0]
         yl_0 = ROI_coordinate[0, 0, 1]
