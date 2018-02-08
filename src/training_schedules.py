@@ -21,7 +21,7 @@ POLICY = {
     # 'decay': 0.0005,
     # 'max_iter': 80000,
 
-    'BATCH_SIZE': 2,
+    'BATCH_SIZE': 4,
     'height': 416,
     'width': 416,
     'side': 13,
