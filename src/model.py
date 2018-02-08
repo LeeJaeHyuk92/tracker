@@ -3,6 +3,8 @@ from .ops import conv_bn, conv_linear
 import numpy as np
 from scipy.misc import imread, imresize
 from src.utils import bcolors
+import time
+import cv2
 
 slim = tf.contrib.slim
 
@@ -277,10 +279,10 @@ class net:
         pbox_xy = np.reshape(pbox_xy, [1, 2])
         pbox_xy = tf.expand_dims(pbox_xy, 0)
 
-        pimg = pimg[..., [2, 1, 0]]
-        cimg = cimg[..., [2, 1, 0]]
-        pimg_resize = imresize(pimg, [POLICY['height'], POLICY['width'], 3], POLICY['interpolation'])
-        cimg_resize = imresize(cimg, [POLICY['height'], POLICY['width'], 3], POLICY['interpolation'])
+        pimg_trans = pimg[..., [2, 1, 0]]
+        cimg_trans = cimg[..., [2, 1, 0]]
+        pimg_resize = imresize(pimg_trans, [POLICY['height'], POLICY['width'], 3], POLICY['interpolation'])
+        cimg_resize = imresize(cimg_trans, [POLICY['height'], POLICY['width'], 3], POLICY['interpolation'])
 
         pimg_resize = tf.to_float(pimg_resize / 255.0)
         cimg_resize = tf.to_float(cimg_resize / 255.0)
@@ -302,18 +304,36 @@ class net:
 
         adjusted_net_out = tf.concat([adjusted_coords_xy, adjusted_coords_wh, adjusted_c], 3)
 
-        offset = np.array([np.arange(H)] * H * B)  # [13*5 ,13]
-        offset = np.reshape(offset, (B, H, H))  # [5, 13, 13]
-        offset = np.transpose(offset, (1, 2, 0))  # [13, 13, 5]
-        offset = tf.constant(offset, dtype=tf.float32)
-        offset = tf.reshape(offset, [13, 13, B])
-        offset = tf.tile(offset, [1, 1, 1])  # [None, 13, 13, 5]
-        offset = tf.div(1., offset)
 
         saver = tf.train.Saver()
         with tf.Session() as sess:
             saver.restore(sess, ckpt)
-            adjusted_net_out = sess.run(adjusted_net_out)        # [batch, HW, B, 5]
+            start = time.time()
+            adjusted_net_out = sess.run(adjusted_net_out)        # [H, W, B, 5]
+            end = time.time()
+
+        top_obj_index = np.where(adjusted_net_out[:, :, :, 4] > POLICY['thresh'])
+        predict = adjusted_net_out[top_obj_index]
+
+        if predict.size > 0:
+            pred_cx = (float(top_obj_index[1][0]) + predict[0][0]) / W * w
+            pred_cy = (float(top_obj_index[0][0]) + predict[0][1]) / H * h
+            pred_w = predict[0][2] * w
+            pred_h = predict[0][3] * h
+            pred_obj = predict[0][4]
+
+            pred_xl = int(pred_cx - pred_w / 2)
+            pred_yl = int(pred_cy - pred_h / 2)
+            pred_xr = int(pred_cx + pred_w / 2)
+            pred_yr = int(pred_cy + pred_h / 2)
+
+            pred_cimg = cv2.rectangle(cimg, (pred_xl, pred_yl), (pred_xr, pred_yr), (0, 255, 0), 3)
+
+            cv2.imwrite('pred_cimg.png',pred_cimg)
+            print(bcolors.WARNING + "Inference time {:3f}".format(end-start) + bcolors.ENDC)
+
+
+
 
         return adjusted_net_out
 

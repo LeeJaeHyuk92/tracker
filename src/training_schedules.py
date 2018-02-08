@@ -40,7 +40,7 @@ POLICY = {
     'noobject_scale': 1,
     'class_scale': 1,
     'coord_scale': 1,
-    'thresh ':  .6,
+    'thresh':  .6,
     'num': 1,
     'anchors': [3.42, 4.41],
 
