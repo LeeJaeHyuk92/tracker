@@ -9,7 +9,9 @@ from model import net
 # DATA_PATH = '/home/jaehyuk/code/own/tracker/data/vot2015'
 
 ckpt = './logs/180208_short_sample/model.ckpt-80000'
+real_data_path = 'datapath'
 data_dir = './data/vot2015'
+os.symlink(data_dir, real_data_path)
 result_dir = './result'
 
 # Verify arguments are valid
