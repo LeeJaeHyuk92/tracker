@@ -8,10 +8,10 @@ import argparse
 from model import net
 # DATA_PATH = '/home/jaehyuk/code/own/tracker/data/vot2015'
 
-ckpt = './logs/180208_short_sample/model.ckpt-80000'
-real_data_path = 'datapath'
-data_dir = './data/vot2015'
-os.symlink(data_dir, real_data_path)
+ckpt = './logs/180209_short_vot2015/model.ckpt-15311'
+# symlink = 'datapath'
+data_dir = './data/vot2015_full'
+# os.symlink(symlink, data_dir)
 result_dir = './result'
 
 # Verify arguments are valid
@@ -34,26 +34,29 @@ objLoaderVot = loader_vot(data_dir)
 videos = objLoaderVot.get_videos()
 video_keys = videos.keys()
 
+once = True
 for idx in range(len(videos)):
     video_frames = videos[video_keys[idx]][0]         # ex) bag/*.jpg list
     annot_frames = videos[video_keys[idx]][1]         # ex) bag/groundtruth, rectangle box info
     num_frames = min(len(video_frames), len(annot_frames))
 
     # num_frame+1.jpg does not exist
-    for i in range(0, num_frames-1):
+    for i in range(0, 4):# num_frames-1):
         pimg_path = video_frames[i]
         cimg_path = video_frames[i+1]
         pbox = annot_frames[i]
         cbox = annot_frames[i+1]
 
 
-        if i == 0:
+        if once:
             out = Tracker.test_images(ckpt=ckpt,
                                       pimg_path=pimg_path,
                                       cimg_path=cimg_path,
                                       POLICY=POLICY_TEST,
                                       pbox=pbox,
                                       reuse=False)
+            once = False
+
         else:
             out = Tracker.test_images(ckpt=ckpt,
                                       pimg_path=pimg_path,
