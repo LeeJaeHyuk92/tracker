@@ -8,14 +8,22 @@ import argparse
 from model import net
 # DATA_PATH = '/home/jaehyuk/code/own/tracker/data/vot2015'
 
-ckpt = './logs/180208_reduce_mean/model.ckpt-122414'
+ckpt = './logs/180208_short_sample/model.ckpt-80000'
 data_dir = './data/vot2015'
+result_dir = './result'
 
 # Verify arguments are valid
 if not os.path.exists(ckpt + '.meta'):
     raise ValueError('ckpt does not exist')
 if not os.path.isdir(data_dir):
     raise ValueError('data_dir must exist and be a directory')
+
+sub_vot_dirs = [dir_name for dir_name in os.listdir(data_dir) if os.path.isdir(os.path.join(data_dir, dir_name))]
+for vot_sub_dir in sub_vot_dirs:
+    vot_dir_path = os.path.join(result_dir, data_dir, vot_sub_dir)
+    if not os.path.exists(vot_dir_path):
+        os.makedirs(vot_dir_path)
+
 
 Tracker = net()
 
@@ -36,8 +44,18 @@ for idx in range(len(videos)):
         pbox = annot_frames[i]
         cbox = annot_frames[i+1]
 
-        out = Tracker.test_images(ckpt=ckpt,
-                                  pimg_path=pimg_path,
-                                  cimg_path=cimg_path,
-                                  POLICY=POLICY_TEST,
-                                  pbox=pbox)
+
+        if i == 0:
+            out = Tracker.test_images(ckpt=ckpt,
+                                      pimg_path=pimg_path,
+                                      cimg_path=cimg_path,
+                                      POLICY=POLICY_TEST,
+                                      pbox=pbox,
+                                      reuse=False)
+        else:
+            out = Tracker.test_images(ckpt=ckpt,
+                                      pimg_path=pimg_path,
+                                      cimg_path=cimg_path,
+                                      POLICY=POLICY_TEST,
+                                      pbox=pbox,
+                                      reuse=True)

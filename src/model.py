@@ -67,7 +67,7 @@ class net:
         return conv_5, conv_6
 
 
-    def model_pred(self, cimg_conv5, cimg_conv6, pimg_conv6, ROI_coordinate, POLICY, trainable=True, test=False):
+    def model_pred(self, cimg_conv5, cimg_conv6, pimg_conv6, ROI_coordinate, POLICY, trainable=True, reuse=False, test=False):
         """
         Predict final feature map
         :param ROI_coordinate: pbox_xy
@@ -122,7 +122,9 @@ class net:
         tf.summary.image("correlation_1", correlation[:, :, :, 1:2], max_outputs=2)
 
         # TODO, FC or 1D conv if you want
-        net_out = conv_linear(correlation, filters=5, kernel=1, scope='conv_final', trainable=trainable)
+        with slim.arg_scope([slim.conv2d],
+                            reuse=reuse):
+            net_out = conv_linear(correlation, filters=5, kernel=1, scope='conv_final', trainable=trainable)
         tf.summary.image("objectness", correlation[:, :, :, 4:], max_outputs=2)
 
         # TODO, get highest object score
@@ -329,9 +331,10 @@ class net:
                         adjusted_net_out = sess.run(adjusted_net_out)
 
 
-    def test_images(self, ckpt, pimg_path, cimg_path, POLICY, pbox): #, out_path, video_play=True, save_image=False):
+    def test_images(self, ckpt, pimg_path, cimg_path, POLICY, pbox, reuse=False): #, out_path, video_play=True, save_image=False):
         '''
         image [h, w, c] no batch
+        :param reuse: model_conv reuse for test
         '''
 
         H, W = POLICY['side'], POLICY['side']
@@ -365,9 +368,9 @@ class net:
         pimg_resize = tf.expand_dims(pimg_resize, 0)
         cimg_resize = tf.expand_dims(cimg_resize, 0)
 
-        _, pimg_conv6 = self.model_conv(pimg_resize, trainable=True, reuse=False)
-        cimg_conv5, cimg_conv6 = self.model_conv(cimg_resize, trainable=True, reuse=True)
-        net_out = self.model_pred(cimg_conv5, cimg_conv6, pimg_conv6, pbox_xy, POLICY, trainable=True)
+        _, pimg_conv6 = self.model_conv(pimg_resize, trainable=False, reuse=reuse)
+        cimg_conv5, cimg_conv6 = self.model_conv(cimg_resize, trainable=False, reuse=True)
+        net_out = self.model_pred(cimg_conv5, cimg_conv6, pimg_conv6, pbox_xy, POLICY, trainable=False, reuse=reuse)
 
         # calculate box
         net_out_reshape = tf.reshape(net_out, [H, W, B, (4 + 1)])
@@ -403,9 +406,9 @@ class net:
             pred_yr = int(pred_cy + pred_h / 2)
 
             pred_cimg = cv2.rectangle(cimg, (pred_xl, pred_yl), (pred_xr, pred_yr), (0, 255, 0), 3)
-
-            cv2.imwrite('pred_cimg.png',pred_cimg)
+            cv2.imwrite('./result/' + cimg_path, pred_cimg)
             print(bcolors.WARNING + "Inference time {:3f}".format(end-start) + bcolors.ENDC)
+
 
 
 
