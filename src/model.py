@@ -407,8 +407,12 @@ class net:
 
             pred_cimg = cv2.rectangle(cimg, (pred_xl, pred_yl), (pred_xr, pred_yr), (0, 255, 0), 3)
             cv2.imwrite('./result/' + cimg_path, pred_cimg)
+            print(bcolors.WARNING + cimg_path + bcolors.ENDC)
             print(bcolors.WARNING + "Inference time {:3f}".format(end-start) + bcolors.ENDC)
 
+        else:
+            cv2.imwrite('./result/' + cimg_path, cimg)
+            print(bcolors.FAIL + "FAIL"+ cimg_path + bcolors.ENDC)
 
 
 
@@ -474,6 +478,13 @@ class net:
 
         loss = tf.pow(adjusted_net_out - true, 2)
         loss = tf.multiply(loss, wght)
+
+        tf.summary.scalar('loss_cx', tf.reduce_sum(loss, [0, 1, 2])[0])
+        tf.summary.scalar('loss_cy', tf.reduce_sum(loss, [0, 1, 2])[1])
+        tf.summary.scalar('loss_w_root', tf.reduce_sum(loss, [0, 1, 2])[2])
+        tf.summary.scalar('loss_h_root', tf.reduce_sum(loss, [0, 1, 2])[3])
+        tf.summary.scalar('loss_obj', tf.reduce_sum(loss, [0, 1, 2])[4])
+
         loss = tf.reshape(loss, [-1, H * W * B * (4 + 1)])
         loss = tf.reduce_sum(loss, 1)
         loss = .5 * tf.reduce_mean(loss)
