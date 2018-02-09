@@ -33,9 +33,11 @@ class loader_vot:
 
         vot_folder = self.vot_folder
         sub_vot_dirs = self.find_subfolders(vot_folder)
+        num_images = 0
         for vot_sub_dir in sub_vot_dirs:
             video_path = glob.glob(os.path.join(vot_folder, vot_sub_dir, '*.jpg'))
             objVid = video(video_path)
+            num_images += len(video_path) - 1
             list_of_frames = sorted(video_path)
             if not list_of_frames:
                 raise Exception('vot folders should contain only .jpg images')
