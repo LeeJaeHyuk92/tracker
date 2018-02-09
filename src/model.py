@@ -382,7 +382,7 @@ class net:
 
         adjusted_net_out = tf.concat([adjusted_coords_xy, adjusted_coords_wh, adjusted_c], 3)
 
-
+        # TODO, FIX, graph g
         saver = tf.train.Saver()
         with tf.Session() as sess:
             saver.restore(sess, ckpt)
