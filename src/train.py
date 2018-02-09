@@ -11,7 +11,7 @@ from model import net
 # ckpt = './logs/Tracker/model.ckpt-1043223'
 ckpt = None
 log_dir = './logs/Tracker/'
-data_type = 'sample'
+data_type = 'train'
 
 Tracker = net()
 schedule_verbose(POLICY)
