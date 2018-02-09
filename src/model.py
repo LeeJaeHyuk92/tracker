@@ -199,7 +199,7 @@ class net:
 
         # TODO, FC or 1D conv if you want
         net_out = conv_linear(correlation, filters=5, kernel=1, scope='conv_final', trainable=trainable)
-        tf.summary.image("objectness", correlation[:, :, :, 4:], max_outputs=2)
+        tf.summary.image("objectness", net_out[:, :, :, 4:], max_outputs=2)
 
         # TODO, get highest object score
         # softmax,
@@ -227,7 +227,7 @@ class net:
             momentum=training_schedule['momentum'])
 
         # TODO, Is it OK just No trainable?
-        _, pimg_conv6 = self.model_conv(pimg_resize, trainable=True, reuse=False)
+        _, pimg_conv6 = self.model_conv(pimg_resize, trainable=False, reuse=False)
         cimg_conv5, cimg_conv6 = self.model_conv(cimg_resize, trainable=True, reuse=True)
 
         # TODO, ROI_coordinate
