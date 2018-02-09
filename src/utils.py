@@ -9,7 +9,7 @@ class bcolors:
     UNDERLINE = '\033[4m'
 
 
-def schedule_verbose(POLICY):
+def schedule_verbose(POLICY, data_type):
     print(bcolors.WARNING + "#" * 80 + bcolors.ENDC)
     print(bcolors.FAIL + POLICY['says'] + bcolors.ENDC)
     for key in POLICY:
@@ -28,6 +28,12 @@ def schedule_verbose(POLICY):
                    'anchors']:
             print(bcolors.BOLD + str(key) + bcolors.ENDC)
             print(str(POLICY[str(key)]).rjust(80))
+        elif key in 'SIZES':
+            print(bcolors.BOLD + data_type + ' SIZE ' + bcolors.ENDC)
+            print(bcolors.FAIL + str(POLICY[str(key)][data_type]).rjust(80) + bcolors.ENDC)
+        elif key in 'PATHS':
+            print(bcolors.BOLD + data_type + ' PATH ' + bcolors.ENDC)
+            print(bcolors.FAIL + str(POLICY[str(key)][data_type]).rjust(80) + bcolors.ENDC)
     print("\n" * 2)
 
     print(bcolors.WARNING + "#" * 80 + bcolors.ENDC)

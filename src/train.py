@@ -14,7 +14,7 @@ log_dir = './logs/Tracker/'
 data_type = 'train'
 
 Tracker = net()
-schedule_verbose(POLICY)
+schedule_verbose(POLICY, data_type)
 
 # data loader
 # TODO, dimension check
