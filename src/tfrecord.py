@@ -28,6 +28,19 @@ def _batch(w, h, pbox, cbox, training_schedule):
     celly = 1. * h / S
     obj = [0, 0, 0, 0, 0]
 
+    for box in [pbox, cbox]:
+        if box.x1 < 0:
+            box.x1 = 0.
+            print('adjust box coordinate')
+        if box.y1 < 0:
+            box.y1 = 0.
+            print('adjust box coordinate')
+        if box.x2 > w:
+            box.x2 = float(w)
+            print('adjust box coordinate')
+        if box.y2 > h:
+            box.y2 = float(h)
+            print('adjust box coordinate')
     # pbox
     centerx = .5 * (pbox.x1 + pbox.x2)  # xmin, xmax
     centery = .5 * (pbox.y1 + pbox.y2)  # ymin, ymax
@@ -40,7 +53,9 @@ def _batch(w, h, pbox, cbox, training_schedule):
     centery = .5 * (cbox.y1 + cbox.y2)  # ymin, ymax
     cx = centerx / cellx
     cy = centery / celly
-    if cx >= S or cy >= S: return None, None
+    if cx >= S or cy >= S:
+        raise('center point error')
+        return None, None
     obj[3] = float(cbox.x2 - cbox.x1) / w
     obj[4] = float(cbox.y2 - cbox.y1) / h
     obj[3] = np.sqrt(obj[3])
@@ -187,6 +202,8 @@ def dataset_visualizatioin_gt(FLAGS):
 
         for i in range(0, num_frames):
             pimg_path = video_frames[i]
+            if pimg_path=='./data/vot2015_full/birds2/00000384.jpg':
+                pass
             pbox = annot_frames[i]
 
             pimg = imread(pimg_path)
@@ -194,11 +211,12 @@ def dataset_visualizatioin_gt(FLAGS):
             # pimg_resize = imresize(pimg, [POLICY['height'], POLICY['width'], 3], POLICY['interpolation'])
             pimg_gt = cv2.rectangle(pimg, (int(pbox.x1), int(pbox.y1)), (int(pbox.x2), int(pbox.y2)), (0, 0, 255), 3)
             # cv2.imwrite('./data/tfrecords/'+ pimg_path, pimg_gt)
-            try:
-                cv2.imwrite('./data/tfrecords/data/vot2015_full_all/' + '{:05d}'.format(count)+ '_' + pimg_path.split('/')[-2] + '_' +pimg_path.split('/')[-1],
-                            pimg_gt)
-            except:
-                raise('write false')
+
+            # try:
+            #     cv2.imwrite('./data/tfrecords/data/vot2015_full_all/' + '{:05d}'.format(count)+ '_' + pimg_path.split('/')[-2] + '_' +pimg_path.split('/')[-1],
+            #                 pimg_gt)
+            # except:
+            #     raise('write false')
 
             count += 1
 
@@ -210,8 +228,9 @@ def dataset_visualizatioin_gt(FLAGS):
 def main():
     # DATA_PATH = '/home/jaehyuk/code/own/tracker/data/vot2015'
 
-    # convert_dataset(FLAGS, FLAGS.name)
-    dataset_visualizatioin_gt(FLAGS)
+    convert_dataset(FLAGS, FLAGS.name)
+    # dataset_visualizatioin_gt(FLAGS)
+
     # convert_dataset(train_idxs, 'train_1_adj')
     # convert_dataset(train_idxs, 'train_1_dis')
     # convert_dataset(train_idxs, 'train_2_seq')  ... ex) train_2_seq_bag.tfrecords... ...
