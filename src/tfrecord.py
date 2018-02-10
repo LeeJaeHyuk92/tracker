@@ -13,7 +13,7 @@ import cv2
 
 
 # https://github.com/thtrieu/darkflow
-def _batch(w, h, pbox, cbox, training_schedule):
+def _batch(w, h, pbox, cbox, training_schedule, pimg_path, cimg_path):
     """
     Takes a chunk of parsed annotations
     returns value for placeholders of net's
@@ -28,19 +28,39 @@ def _batch(w, h, pbox, cbox, training_schedule):
     celly = 1. * h / S
     obj = [0, 0, 0, 0, 0]
 
-    for box in [pbox, cbox]:
-        if box.x1 < 0:
-            box.x1 = 0.
-            print('adjust box coordinate')
-        if box.y1 < 0:
-            box.y1 = 0.
-            print('adjust box coordinate')
-        if box.x2 > w:
-            box.x2 = float(w)
-            print('adjust box coordinate')
-        if box.y2 > h:
-            box.y2 = float(h)
-            print('adjust box coordinate')
+    if pbox.x1 < 0:
+        pbox.x1 = 0.
+        print("error image: " + pimg_path )
+        print('adjust box x1<0 coordinate')
+    if pbox.y1 < 0:
+        pbox.y1 = 0.
+        print("error image: " + pimg_path)
+        print('adjust box y1<0 coordinate')
+    if pbox.x2 > w:
+        pbox.x2 = float(w)
+        print("error image: " + pimg_path)
+        print('adjust box x2>w coordinate')
+    if pbox.y2 > h:
+        pbox.y2 = float(h)
+        print("error image: " + pimg_path)
+        print('adjust box y2>h coordinate')
+
+    if cbox.x1 < 0:
+        cbox.x1 = 0.
+        print("error image: " + cimg_path )
+        print('adjust box x1<0 coordinate')
+    if cbox.y1 < 0:
+        cbox.y1 = 0.
+        print("error image: " + cimg_path)
+        print('adjust box y1<0 coordinate')
+    if cbox.x2 > w:
+        cbox.x2 = float(w)
+        print("error image: " + cimg_path)
+        print('adjust box x2>w coordinate')
+    if cbox.y2 > h:
+        cbox.y2 = float(h)
+        print("error image: " + cimg_path)
+        print('adjust box y2>h coordinate')
     # pbox
     centerx = .5 * (pbox.x1 + pbox.x2)  # xmin, xmax
     centery = .5 * (pbox.y1 + pbox.y2)  # ymin, ymax
@@ -145,7 +165,7 @@ def convert_dataset(FLAGS, name):
             cimg_resize_raw = cimg_resize.tostring()
 
             h, w, _ = cimg.shape
-            loss_feed_val = _batch(w, h, pbox, cbox, POLICY)
+            loss_feed_val = _batch(w, h, pbox, cbox, POLICY, pimg_path, cimg_path)
 
             pbox_xy = loss_feed_val['pbox_xy']
             confs = loss_feed_val['confs']
