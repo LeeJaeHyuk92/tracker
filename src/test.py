@@ -8,7 +8,7 @@ import argparse
 from model import net
 # DATA_PATH = '/home/jaehyuk/code/own/tracker/data/vot2015'
 
-ckpt = './logs/180209_short_vot2015/model.ckpt-80000'
+ckpt = './logs/180209_long_vot2015/model.ckpt-225690'
 # symlink = 'datapath'
 data_dir = './data/vot2015_full'
 # os.symlink(symlink, data_dir)

@@ -36,8 +36,8 @@ POLICY = {
         'ftrl': tf.train.FtrlOptimizer,
         'sgd': tf.train.GradientDescentOptimizer,}),
 
-    'object_scale': 1,
-    'noobject_scale': 0.5,
+    'object_scale': 0.5,
+    'noobject_scale': 0.1,
     'class_scale': 1,
     'coord_scale': 5,
     'thresh':  .6,

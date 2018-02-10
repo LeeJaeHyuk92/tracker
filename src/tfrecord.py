@@ -6,6 +6,7 @@ from progressbar import ProgressBar, Percentage, Bar
 from training_schedules import POLICY
 from scipy.misc import imread, imresize
 from loader.loader_vot import loader_vot
+import cv2
 
 # from .misc import show
 
@@ -160,12 +161,57 @@ def convert_dataset(FLAGS, name):
         count += 1
     writer.close()
 
+def dataset_visualizatioin_gt(FLAGS):
+    # TODO, occlusion label for training,
+    # TODO, pbox, cbox, area, upleft, botright (0~1)
+
+    sub_vot_dirs = [dir_name for dir_name in os.listdir(FLAGS.data_dir) if os.path.isdir(os.path.join(FLAGS.data_dir, dir_name))]
+    for vot_sub_dir in sub_vot_dirs:
+        vot_dir_path = os.path.join('./data/tfrecords', FLAGS.data_dir, vot_sub_dir)
+        if not os.path.exists(vot_dir_path):
+            os.makedirs(vot_dir_path)
+
+
+    # Load each data sample (pimg, cimg, pbox, cbox) and write it to the TFRecord
+    objLoaderVot = loader_vot(FLAGS.data_dir)
+    videos = objLoaderVot.get_videos()
+    video_keys = videos.keys()
+
+    # for progressbar
+    count = 1
+    pbar = ProgressBar(widgets=[Percentage(), Bar()], maxval=len(videos)).start()
+    for idx in range(len(videos)):
+        video_frames = videos[video_keys[idx]][0]  # ex) bag/*.jpg list
+        annot_frames = videos[video_keys[idx]][1]  # ex) bag/groundtruth, rectangle box info
+        num_frames = min(len(video_frames), len(annot_frames))
+
+        for i in range(0, num_frames):
+            pimg_path = video_frames[i]
+            pbox = annot_frames[i]
+
+            pimg = imread(pimg_path)
+            # pimg = pimg[..., [2, 1, 0]]
+            # pimg_resize = imresize(pimg, [POLICY['height'], POLICY['width'], 3], POLICY['interpolation'])
+            pimg_gt = cv2.rectangle(pimg, (int(pbox.x1), int(pbox.y1)), (int(pbox.x2), int(pbox.y2)), (0, 0, 255), 3)
+            # cv2.imwrite('./data/tfrecords/'+ pimg_path, pimg_gt)
+            try:
+                cv2.imwrite('./data/tfrecords/data/vot2015_full_all/' + '{:05d}'.format(count)+ '_' + pimg_path.split('/')[-2] + '_' +pimg_path.split('/')[-1],
+                            pimg_gt)
+            except:
+                raise('write false')
+
+            count += 1
+
+
+
+
 
 
 def main():
     # DATA_PATH = '/home/jaehyuk/code/own/tracker/data/vot2015'
 
-    convert_dataset(FLAGS, FLAGS.name)
+    # convert_dataset(FLAGS, FLAGS.name)
+    dataset_visualizatioin_gt(FLAGS)
     # convert_dataset(train_idxs, 'train_1_adj')
     # convert_dataset(train_idxs, 'train_1_dis')
     # convert_dataset(train_idxs, 'train_2_seq')  ... ex) train_2_seq_bag.tfrecords... ...
