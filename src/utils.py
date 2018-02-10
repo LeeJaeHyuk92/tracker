@@ -1,3 +1,6 @@
+import tensorflow as tf
+
+
 class bcolors:
     HEADER = '\033[95m'
     OKBLUE = '\033[94m'
@@ -7,6 +10,10 @@ class bcolors:
     ENDC = '\033[0m'
     BOLD = '\033[1m'
     UNDERLINE = '\033[4m'
+
+
+def expit_tensor(x):
+    return 1. / (1. + tf.exp(-x))
 
 
 def schedule_verbose(POLICY, data_type):
@@ -63,3 +70,32 @@ def ckpt_reader(ckpt, value=False):
             print(reader.get_tensor(key)) # if you look tensor value
 
     print(bcolors.WARNING + "#" * 80 + bcolors.ENDC)
+
+
+def calculate_box_tf(cimg_resize_batch, net_out, POLICY):
+    H, W = POLICY['side'], POLICY['side']
+    B = POLICY['num']
+    HW = H * W  # number of grid cells
+    anchors = POLICY['anchors']
+
+    # calculate box
+    net_out_reshape = tf.reshape(net_out, [-1, H, W, B, (4 + 1)])
+    coords = net_out_reshape[:, :, :, :, :4]
+    adjusted_coords_xy = expit_tensor(coords[:, :, :, :, 0:2])
+    adjusted_coords_wh = tf.exp(coords[:, :, :, :, 2:4]) * tf.reshape(anchors, [1, 1, 1, B, 2]) / tf.reshape([float(W), float(H)], [1, 1, 1, 1, 2])
+
+    xymin = adjusted_coords_xy - adjusted_coords_wh
+    xymax = adjusted_coords_xy + adjusted_coords_wh
+    xyminmax = tf.concat([xymin, xymax], axis=4)
+    # yxminmax = tf.transpose(xyminmax, [0, 2, 1, 4, 3])
+
+    adjusted_c = expit_tensor(net_out_reshape[:, :, :, :, 4:])
+    adjusted_net_out = tf.concat([xyminmax, adjusted_c], 4)
+    top_obj_index = tf.where(adjusted_net_out[:, :, :, :, 4] > tf.reshape([POLICY['thresh']], [POLICY['BATCH_SIZE'], H, W, B]))
+    # TODO, FIX IT, tf.where
+    predict = adjusted_net_out[top_obj_index]
+
+    yx_predict = tf.concat([predict[..., 1], predict[..., 0], predict[..., 3], predict[..., 2]], axis=2)
+
+    cimg_resize_batch = cimg_resize_batch * 255
+    tf.image.draw_bounding_boxes(cimg_resize_batch, yx_predict)

@@ -12,7 +12,7 @@ POLICY = {
     'decay': 0.0005,
     'max_iter': 1200000,
 
-    # # short 150 epoch
+    # # short
     # 'says' : 'training *short*',
     # 'step_values': [25000, 35000, 45000],
     # 'learning_rates': [0.0001, 0.00001, 0.000005, 0.000001],
