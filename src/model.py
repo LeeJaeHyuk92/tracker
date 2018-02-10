@@ -2,7 +2,7 @@ import tensorflow as tf
 from .ops import conv_bn, conv_linear
 import numpy as np
 from scipy.misc import imread, imresize
-from src.utils import bcolors
+from src.utils import bcolors, calculate_box_tf
 import time
 import cv2
 
@@ -233,6 +233,9 @@ class net:
         # TODO, ROI_coordinate
         net_out = self.model_pred_train(cimg_conv5, cimg_conv6, pimg_conv6, pbox_xy, POLICY=training_schedule, trainable=True)
 
+        # TODO, summary box
+        # calculate_box_tf(cimg_resize, net_out, training_schedule)
+
         # loss
         total_loss = self.loss(net_out, confs, coord, areas, upleft, botright, training_schedule=training_schedule)
         tf.summary.scalar('loss', total_loss)
@@ -314,7 +317,8 @@ class net:
                 coords = net_out_reshape[:, :, :, :, :4]
                 coords = tf.reshape(coords, [-1, H * W, B, 4])
                 adjusted_coords_xy = expit_tensor(coords[:, :, :, 0:2])
-                adjusted_coords_wh = tf.exp(coords[:, :, :, 2:4]) * np.reshape(anchors, [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2])
+                adjusted_coords_wh = tf.exp(coords[:, :, :, 2:4]) * np.reshape(anchors, [1, 1, B, 2]) / np.reshape(
+                    [W, H], [1, 1, 1, 2])
 
                 adjusted_c = expit_tensor(net_out_reshape[:, :, :, :, 4])
                 adjusted_c = tf.reshape(adjusted_c, [-1, H * W, B, 1])
@@ -439,7 +443,7 @@ class net:
         coords = tf.reshape(coords, [-1, H * W, B, 4])
         adjusted_coords_xy = expit_tensor(coords[:, :, :, 0:2])
         adjusted_coords_wh = tf.sqrt(
-            tf.exp(coords[:, :, :, 2:4]) * np.reshape(anchors, [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2]))
+            tf.exp(coords[:, :, :, 2:4]) * np.reshape(anchors, [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2]) + 1e-8)
         coords = tf.concat([adjusted_coords_xy, adjusted_coords_wh], 3)
 
         adjusted_c = expit_tensor(net_out_reshape[:, :, :, :, 4])
