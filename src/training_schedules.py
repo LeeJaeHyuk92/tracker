@@ -36,10 +36,10 @@ POLICY = {
         'ftrl': tf.train.FtrlOptimizer,
         'sgd': tf.train.GradientDescentOptimizer,}),
 
-    'object_scale': 0.1,
-    'noobject_scale': 1,
+    'object_scale': 1,
+    'noobject_scale': 0.5,
     'class_scale': 1,
-    'coord_scale': 1,
+    'coord_scale': 5,
     'thresh':  .6,
     'num': 1,
     'anchors': [3.42, 4.41],
