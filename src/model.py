@@ -394,10 +394,11 @@ class net:
             adjusted_net_out = sess.run(adjusted_net_out)        # [H, W, B, 5]
             end = time.time()
 
-        top_obj_index = np.where(adjusted_net_out[:, :, :, 4] > POLICY['thresh'])
-        predict = adjusted_net_out[top_obj_index]
+        top_obj_index = np.where(adjusted_net_out[..., 4] == np.max(adjusted_net_out[..., 4]))
+        objectness = adjusted_net_out[top_obj_index][..., 4]
 
-        if predict.size > 0:
+        if objectness > POLICY['thresh']:
+            predict = adjusted_net_out[top_obj_index]
             pred_cx = (float(top_obj_index[1][0]) + predict[0][0]) / W * w
             pred_cy = (float(top_obj_index[0][0]) + predict[0][1]) / H * h
             pred_w = predict[0][2] * w
