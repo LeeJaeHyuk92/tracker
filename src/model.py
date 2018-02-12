@@ -87,7 +87,7 @@ class net:
         yr = yl+1
 
 
-        ROI_feature = pimg_conv6[:, xl:xr, yl:yr ,:]
+        ROI_feature = pimg_conv6[:, yl:yr, xl:xr, :]
 
         # TODO, if ROI is not 1x1, modify this region
         #_, h, w, c = ROI_feature.shape.as_list()
