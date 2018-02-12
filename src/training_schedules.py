@@ -51,7 +51,7 @@ POLICY = {
         'cbox': 'cimg box x1, y1, x2, y2',
     },
     'SIZES': {
-        'train': 21335,
+        'train': 21395,
         'validate': 196,
         'sample': 196,
     },
@@ -71,7 +71,7 @@ POLICY_TEST = {
     'side': 13,
     'channels': 3,
 
-    'thresh':  .6,
+    'thresh':  .1,
     'num': 1,
     'anchors': [3.42, 4.41],
 
