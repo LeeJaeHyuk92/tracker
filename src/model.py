@@ -122,6 +122,7 @@ class net:
         tf.summary.image("correlation_1", correlation[:, :, :, 1:2], max_outputs=2)
 
         # TODO, FC or 1D conv if you want
+        # for test
         with slim.arg_scope([slim.conv2d],
                             reuse=reuse):
             net_out = conv_linear(correlation, filters=5, kernel=1, scope='conv_final', trainable=trainable)
@@ -159,10 +160,10 @@ class net:
         yl_3 = ROI_coordinate[3, 0, 1]
 
         # TODO, FIX,spaghetti code -_- ROI 1x1 region
-        ROI_feature = tf.concat([pimg_conv6[0:1, xl_0:xl_0 + 1, yl_0:yl_0 + 1, :],
-                                 pimg_conv6[1:2, xl_1:xl_1 + 1, yl_1:yl_1 + 1, :],
-                                 pimg_conv6[2:3, xl_2:xl_2 + 1, yl_2:yl_2 + 1, :],
-                                 pimg_conv6[3:4, xl_3:xl_3 + 1, yl_3:yl_3 + 1, :]],
+        ROI_feature = tf.concat([pimg_conv6[0:1, yl_0:yl_0 + 1, xl_0:xl_0 + 1, :],
+                                 pimg_conv6[1:2, yl_1:yl_1 + 1, xl_1:xl_1 + 1, :],
+                                 pimg_conv6[2:3, yl_2:yl_2 + 1, xl_2:xl_2 + 1, :],
+                                 pimg_conv6[3:4, yl_3:yl_3 + 1, xl_3:xl_3 + 1, :]],
                                 axis=0)
 
         # TODO, if ROI is not 1x1, modify this region
