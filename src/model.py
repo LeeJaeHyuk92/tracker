@@ -220,11 +220,17 @@ class net:
             [tf.cast(v, tf.int64) for v in training_schedule['step_values']],
             training_schedule['learning_rates'])
 
-        optimizer = training_schedule['optimizer']['rmsprop'](
-            learning_rate=self.learning_rate,
-            decay=training_schedule['decay'],
-            epsilon=1e-8,
-            momentum=training_schedule['momentum'])
+        # optimizer = training_schedule['optimizer']['rmsprop'](
+        #     learning_rate=self.learning_rate,
+        #     decay=training_schedule['decay'],
+        #     epsilon=1e-8,
+        #     momentum=training_schedule['momentum'])
+
+        optimizer = training_schedule['optimizer']['adam'](
+            self.learning_rate,
+            training_schedule['momentum'],
+            training_schedule['momentum2'])
+
 
         # TODO, Is it OK just No trainable?
         _, pimg_conv6 = self.model_conv(pimg_resize, trainable=True, reuse=False)
