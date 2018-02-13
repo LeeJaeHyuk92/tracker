@@ -401,33 +401,37 @@ class net:
             adjusted_net_out = sess.run(adjusted_net_out)        # [H, W, B, 5]
             end = time.time()
 
-        top_obj_index = np.where(adjusted_net_out[..., 4] == np.max(adjusted_net_out[..., 4]))
-        objectness = adjusted_net_out[top_obj_index][..., 4]
+        top_obj_indexs = np.where(adjusted_net_out[..., 4] == np.max(adjusted_net_out[..., 4]))
+        objectness_s = adjusted_net_out[top_obj_indexs][..., 4]
 
-        if objectness > POLICY['thresh']:
-            predict = adjusted_net_out[top_obj_index]
-            pred_cx = (float(top_obj_index[1][0]) + predict[0][0]) / W * w
-            pred_cy = (float(top_obj_index[0][0]) + predict[0][1]) / H * h
-            pred_w = predict[0][2] * w
-            pred_h = predict[0][3] * h
-            pred_obj = predict[0][4]
+        for idx, objectness in np.ndenumerate(objectness_s):
+            predict = adjusted_net_out[top_obj_indexs]
+            pred_cx = (float(top_obj_indexs[1][idx]) + predict[idx][0]) / W * w
+            pred_cy = (float(top_obj_indexs[0][idx]) + predict[idx][1]) / H * h
+            pred_w = predict[idx][2] * w
+            pred_h = predict[idx][3] * h
+            pred_obj = predict[idx][4]
 
             pred_xl = int(pred_cx - pred_w / 2)
             pred_yl = int(pred_cy - pred_h / 2)
             pred_xr = int(pred_cx + pred_w / 2)
             pred_yr = int(pred_cy + pred_h / 2)
 
-            pred_cimg = cv2.rectangle(cimg, (pred_xl, pred_yl), (pred_xr, pred_yr), (0, 255, 0), 3)
-            cv2.imwrite('./result/' + cimg_path, pred_cimg)
-            print(bcolors.WARNING + cimg_path + bcolors.ENDC)
-            print(bcolors.WARNING + "Inference time {:3f}".format(end-start) + "    obj: " + objectness + bcolors.ENDC)
+            if objectness > POLICY['thresh']:
+                pred_cimg = cv2.rectangle(cimg, (pred_xl, pred_yl), (pred_xr, pred_yr), (0, 255, 0), 3)
+                cv2.putText(pred_cimg, str(objectness), (pred_xl, pred_yl), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 0), 2)
+                # cv2.imwrite('./result/' + cimg_path, pred_cimg)
+                cv2.imwrite('./result/' + cimg_path.split('/')[-2] + "_" + cimg_path.split('/')[-1], pred_cimg)
+                print(bcolors.WARNING + cimg_path + bcolors.ENDC)
+                print(bcolors.WARNING + "Inference time {:3f}".format(end-start) + "    obj: " + str(objectness) + bcolors.ENDC)
 
-        else:
-            # cv2.imwrite('./result/' + cimg_path, cimg)
-            print(bcolors.FAIL + "FAIL"+ cimg_path + + "    obj: " + objectness + bcolors.ENDC)
-
-
-
+            else:
+                pred_cimg = cv2.rectangle(cimg, (pred_xl, pred_yl), (pred_xr, pred_yr), (0, 0, 255), 3)
+                cv2.putText(pred_cimg, str(objectness), (pred_xl, pred_yl), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 2)
+                # cv2.imwrite('./result/' + cimg_path, pred_cimg)
+                cv2.imwrite('./result/' + cimg_path.split('/')[-2] + "_" + cimg_path.split('/')[-1], pred_cimg)
+                print(bcolors.FAIL + cimg_path + bcolors.ENDC)
+                print(bcolors.FAIL + "FAIL "+ "Inference time {:3f}".format(end-start) + "    obj: " + str(objectness) + bcolors.ENDC)
 
         return adjusted_net_out
 
