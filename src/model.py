@@ -420,11 +420,11 @@ class net:
             pred_cimg = cv2.rectangle(cimg, (pred_xl, pred_yl), (pred_xr, pred_yr), (0, 255, 0), 3)
             cv2.imwrite('./result/' + cimg_path, pred_cimg)
             print(bcolors.WARNING + cimg_path + bcolors.ENDC)
-            print(bcolors.WARNING + "Inference time {:3f}".format(end-start) + "    obj: " + pred_obj + bcolors.ENDC)
+            print(bcolors.WARNING + "Inference time {:3f}".format(end-start) + "    obj: " + objectness + bcolors.ENDC)
 
         else:
             # cv2.imwrite('./result/' + cimg_path, cimg)
-            print(bcolors.FAIL + "FAIL"+ cimg_path + + "    obj: " + pred_obj + bcolors.ENDC)
+            print(bcolors.FAIL + "FAIL"+ cimg_path + + "    obj: " + objectness + bcolors.ENDC)
 
 
 
