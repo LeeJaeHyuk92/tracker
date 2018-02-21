@@ -11,14 +11,14 @@ from model import net
 # ckpt = './logs/Tracker/model.ckpt-1043223'
 ckpt = None
 log_dir = './logs/Tracker/'
-data_type = 'train'
+data_type = 'sample'
 
 Tracker = net()
 schedule_verbose(POLICY, data_type)
 
 # data loader
 # TODO, dimension check
-pimg_resize, cimg_resize, pbox_xy, \
+pimg_resize, cimg_resize, pbox_xy, pROI,\
 confs, coord, areas, upleft, botright = load_batch(POLICY, data_type)
 
 # check ckpt variable
@@ -30,6 +30,7 @@ Tracker.train(log_dir=log_dir,
               pimg_resize=pimg_resize,
               cimg_resize=cimg_resize,
               pbox_xy=pbox_xy,
+              pROI=pROI,
               confs=confs,
               coord=coord,
               areas=areas,

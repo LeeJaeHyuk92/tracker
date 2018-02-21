@@ -36,6 +36,14 @@ class net:
         # self.global_step = slim.get_or_create_global_step()
         self.global_step = tf.train.get_or_create_global_step()
 
+    def build_model_test(self, POLICY):
+
+        self.pimg_resize = tf.placeholder(dtype=tf.float32, shape=[None, POLICY['height'], POLICY['width'], 3])
+        self.cimg_resize = tf.placeholder(dtype=tf.float32, shape=[None, POLICY['height'], POLICY['width'], 3])
+        self.pbox_xy = tf.placeholder(dtype=tf.int32, shape=[None, 1, 2])
+        _, pimg_conv6 = self.model_conv(self.pimg_resize, trainable=False, reuse=False)
+        cimg_conv5, cimg_conv6 = self.model_conv(self.cimg_resize, trainable=False, reuse=True)
+        self.net_out = self.model_pred(cimg_conv5, cimg_conv6, pimg_conv6, self.pbox_xy, POLICY, trainable=False, reuse=False)
 
     def model_conv(self, image, trainable=True, reuse=False):
         """
@@ -117,16 +125,16 @@ class net:
                                                      padding='SAME')
         correlation_conv6 = tf.multiply(cimg_conv6, ROI_feature)
         correlation_conv6 = tf.reduce_mean(correlation_conv6, axis=3, keep_dims=True, name='correlation6')
-        correlation = tf.concat([correlation_conv5, correlation_conv6], axis=3, name='correlation')
-        tf.summary.image("correlation_0", correlation[:, :, :, 0:1], max_outputs=2)
-        tf.summary.image("correlation_1", correlation[:, :, :, 1:2], max_outputs=2)
+        self.correlation = tf.concat([correlation_conv5, correlation_conv6], axis=3, name='correlation')
+        tf.summary.image("correlation_0", self.correlation[:, :, :, 0:1], max_outputs=2)
+        tf.summary.image("correlation_1", self.correlation[:, :, :, 1:2], max_outputs=2)
 
         # TODO, FC or 1D conv if you want
         # for test
         with slim.arg_scope([slim.conv2d],
                             reuse=reuse):
-            net_out = conv_linear(correlation, filters=5, kernel=1, scope='conv_final', trainable=trainable)
-        tf.summary.image("objectness", correlation[:, :, :, 4:], max_outputs=2)
+            net_out = conv_linear(self.correlation, filters=5, kernel=1, scope='conv_final', trainable=trainable)
+        tf.summary.image("objectness", self.correlation[:, :, :, 4:], max_outputs=2)
 
         # TODO, get highest object score
         # softmax,
@@ -209,8 +217,72 @@ class net:
 
         return net_out
 
+    def model_pred_train_ROI(self, cimg_conv5, cimg_conv6, pimg_conv6, pROI, POLICY, trainable=True, test=False):
+        """
+        Predict final feature map
+        :param pROI: pROI
+        :return net_out: [_, model_size/32, model_size/32, 5]
+                       : tx, ty, tw, th, object_score ... YOLOv2
+        """
+
+        from roi_pooling.roi_pooling_ops import roi_pooling
+        # crop[:, xl:xr, yl:yr, :]
+        # xl, yl, xr, yr = ROI_coordinate,
+        # using first' frames coordinate
+
+
+        # W, H  for 4 batch size
+        # batch, Wl, Hl, WR, HR
+        rois = []
+        rois.append([0] + pROI[0])
+        rois.append([1] + pROI[1])
+        rois.append([2] + pROI[2])
+        rois.append([3] + pROI[3])
+
+        # roi_pooling -> batch, wl, hl, wr, hr list
+        ROI_feature = roi_pooling(pimg_conv6, rois, pool_height=3, pool_width=3)
+        cimg_conv5 = tf.extract_image_patches(cimg_conv5,
+                                              ksizes=[1, 2, 2, 1],
+                                              strides=[1, 2, 2, 1],
+                                              rates=[1, 1, 1, 1],
+                                              padding='SAME')
+        cimg_conv5_0, cimg_conv5_1, cimg_conv5_2, cimg_conv5_3= tf.split(cimg_conv5, 4, axis=3)
+
+        cimg_concat = tf.stack([cimg_conv5_0,
+                                cimg_conv5_1,
+                                cimg_conv5_2,
+                                cimg_conv5_3,
+                                cimg_conv6], axis=1)           # [batch, 5, H, W, depth]
+
+
+        # for 4 batch size
+        ROI_feature = tf.transpose(ROI_feature, perm=[0, 3, 2, 1])      # batch, height, width, in_channels
+        ROI_feature = tf.expand_dims(ROI_feature, axis=4)               # 1 out_channel
+        correlation0 = tf.nn.conv2d(cimg_concat[0, :, :, :], ROI_feature[0], [1, 1, 1, 1], padding='SAME')
+        correlation1 = tf.nn.conv2d(cimg_concat[1, :, :, :], ROI_feature[1], [1, 1, 1, 1], padding='SAME')
+        correlation2 = tf.nn.conv2d(cimg_concat[2, :, :, :], ROI_feature[2], [1, 1, 1, 1], padding='SAME')
+        correlation3 = tf.nn.conv2d(cimg_concat[3, :, :, :], ROI_feature[3], [1, 1, 1, 1], padding='SAME')
+
+        correlation = tf.stack([correlation0, correlation1, correlation2, correlation3], axis=0)    # [batch, 5, H, W, 1]
+        correlation = tf.transpose(correlation, perm=[0, 2, 3, 1, 4])
+        correlation = correlation[..., 0]
+
+        tf.summary.image("correlation_0", correlation[:, :, :, 0:1], max_outputs=2)
+        tf.summary.image("correlation_1", correlation[:, :, :, 1:2], max_outputs=2)
+        # tf.summary.text('pROI', pROI)
+        # TODO, FC or 1D conv if you want
+        net_out = conv_linear(correlation, filters=5, kernel=1, scope='conv_final', trainable=trainable)
+        tf.summary.image("objectness", net_out[:, :, :, 4:], max_outputs=2)
+
+        # TODO, get highest object score
+        # softmax,
+
+        # TODO, calculate box with ROI_coordinate
+
+        return net_out
+
     def train(self, log_dir, training_schedule, pimg_resize, cimg_resize,
-              pbox_xy, confs, coord, areas, upleft, botright, ckpt, debug=True):
+              pbox_xy, pROI, confs, coord, areas, upleft, botright, ckpt, debug=True):
 
         if debug:
             tf.summary.image("pimg", pimg_resize, max_outputs=2)
@@ -238,7 +310,9 @@ class net:
         cimg_conv5, cimg_conv6 = self.model_conv(cimg_resize, trainable=True, reuse=True)
 
         # TODO, ROI_coordinate
-        net_out = self.model_pred_train(cimg_conv5, cimg_conv6, pimg_conv6, pbox_xy, POLICY=training_schedule, trainable=True)
+        # net_out = self.model_pred_train(cimg_conv5, cimg_conv6, pimg_conv6, pbox_xy, POLICY=training_schedule, trainable=True)
+        net_out = self.model_pred_train_ROI(cimg_conv5, cimg_conv6, pimg_conv6, pROI, POLICY=training_schedule, trainable=True)
+
 
         # TODO, summary box
         # calculate_box_tf(cimg_resize, net_out, training_schedule)
@@ -319,6 +393,8 @@ class net:
                 cimg_conv5, cimg_conv6 = self.model_conv(cimg_resize, trainable=True, reuse=True)
                 net_out = self.model_pred(cimg_conv5, cimg_conv6, pimg_conv6, pbox_xy, trainable=True)
 
+                self.net_out
+
                 # calculate box
                 net_out_reshape = tf.reshape(net_out, [-1, H, W, B, (4 + 1)])
                 coords = net_out_reshape[:, :, :, :, :4]
@@ -342,7 +418,7 @@ class net:
                         adjusted_net_out = sess.run(adjusted_net_out)
 
 
-    def test_images(self, ckpt, pimg_path, cimg_path, POLICY, pbox, reuse=False): #, out_path, video_play=True, save_image=False):
+    def test_images(self, ckpt, pimg_path, cimg_path, POLICY, pbox, first_frame=True, reuse=False): #, out_path, video_play=True, save_image=False):
         '''
         image [h, w, c] no batch
         :param reuse: model_conv reuse for test
@@ -399,9 +475,15 @@ class net:
             saver.restore(sess, ckpt)
             start = time.time()
             adjusted_net_out = sess.run(adjusted_net_out)        # [H, W, B, 5]
+            correlation = sess.run(self.correlation)
             end = time.time()
 
-        top_obj_indexs = np.where(adjusted_net_out[..., 4] == np.max(adjusted_net_out[..., 4]))
+        mask = np.zeros(adjusted_net_out[..., 4].shape)
+        mask[int(np.floor(cy)), int(np.floor(cx)), :] = 1.
+        # for mask
+        # top_obj_indexs = np.where(adjusted_net_out[..., 4] == np.max(adjusted_net_out[..., 4]) * mask)
+        # top_obj_indexs = np.where(adjusted_net_out[..., 4] == np.max(adjusted_net_out[..., 4]))
+        top_obj_indexs = np.where(adjusted_net_out[..., 4] > POLICY['thresh'])
         objectness_s = adjusted_net_out[top_obj_indexs][..., 4]
 
         for idx, objectness in np.ndenumerate(objectness_s):
@@ -432,6 +514,28 @@ class net:
                 cv2.imwrite('./result/' + cimg_path.split('/')[-2] + "_" + cimg_path.split('/')[-1], pred_cimg)
                 print(bcolors.FAIL + cimg_path + bcolors.ENDC)
                 print(bcolors.FAIL + "FAIL "+ "Inference time {:3f}".format(end-start) + "    obj: " + str(objectness) + bcolors.ENDC)
+
+        return adjusted_net_out
+
+
+    def test_images_(self, POLICY): #, out_path, video_play=True, save_image=False):
+        '''
+        image [h, w, c] no batch
+        :param reuse: model_conv reuse for test
+        '''
+
+        H, W = POLICY['side'], POLICY['side']
+        B = POLICY['num']
+        HW = H * W  # number of grid cells
+        anchors = POLICY['anchors']
+
+        # calculate box
+        net_out_reshape = tf.reshape(self.net_out, [H, W, B, (4 + 1)])
+        coords = net_out_reshape[:, :, :, :4]
+        adjusted_coords_xy = expit_tensor(coords[:, :, :, 0:2])
+        adjusted_coords_wh = tf.exp(coords[:, :, :, 2:4]) * np.reshape(anchors, [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2])
+        adjusted_c = expit_tensor(net_out_reshape[:, :, :, 4:])
+        adjusted_net_out = tf.concat([adjusted_coords_xy, adjusted_coords_wh, adjusted_c], 3)
 
         return adjusted_net_out
 

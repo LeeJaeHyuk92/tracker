@@ -71,7 +71,7 @@ POLICY_TEST = {
     'side': 13,
     'channels': 3,
 
-    'thresh':  .1,
+    'thresh':  .6,
     'num': 1,
     'anchors': [3.42, 4.41],
 
