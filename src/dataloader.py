@@ -108,6 +108,11 @@ def __get_dataset(dataset_config, split_name):
                 dtype=tf.int32,
                 shape=[2],
                 channels=1),
+            'pROI': Image(
+                image_key='pROI',
+                dtype=tf.int32,
+                shape=[4],
+                channels=1),
             'confs': Image(
                 image_key='confs',
                 dtype=tf.float64,
@@ -133,12 +138,6 @@ def __get_dataset(dataset_config, split_name):
                 dtype=tf.float64,
                 shape=[SIDE*SIDE, 1, 2],
                 channels=1),
-            'pROI': Image(
-                image_key='pROI',
-                dtype=tf.int32,
-                shape=[4],
-                channels=1),
-
 
             # 'pbox_xy': slim.tfexample_decoder.Tensor('pbox_xy'),
             # 'confs': slim.tfexample_decoder.Tensor('confs'),
@@ -187,7 +186,8 @@ def load_batch(dataset_config, split_name):
                                                                   areas,
                                                                   upleft,
                                                                   botright])
-        pbox_xy, pROI = map(tf.to_int32, [pbox_xy, pROI])
+        pbox_xy = map(tf.to_int32, [pbox_xy])
+        pROI = map(tf.to_int32, [pROI])
 
         pimg_resize, cimg_resize, pbox_xy, pROI,\
         confs, coord, areas, upleft, botright = map(lambda x: tf.expand_dims(x, 0), [pimg_resize,

@@ -5,6 +5,7 @@ from scipy.misc import imread, imresize
 from src.utils import bcolors, calculate_box_tf
 import time
 import cv2
+from tensorflow.python import debug as tf_debug
 
 slim = tf.contrib.slim
 
@@ -226,18 +227,13 @@ class net:
         """
 
         from roi_pooling.roi_pooling_ops import roi_pooling
-        # crop[:, xl:xr, yl:yr, :]
-        # xl, yl, xr, yr = ROI_coordinate,
-        # using first' frames coordinate
-
 
         # W, H  for 4 batch size
         # batch, Wl, Hl, WR, HR
-        rois = []
-        rois.append([0] + pROI[0])
-        rois.append([1] + pROI[1])
-        rois.append([2] + pROI[2])
-        rois.append([3] + pROI[3])
+        rois = [[0, pROI[0, 0, 0], pROI[0, 0, 1], pROI[0, 0, 2], pROI[0, 0, 3]],
+                [1, pROI[1, 0, 0], pROI[1, 0, 1], pROI[1, 0, 2], pROI[1, 0, 3]],
+                [2, pROI[2, 0, 0], pROI[2, 0, 1], pROI[2, 0, 2], pROI[2, 0, 3]],
+                [3, pROI[3, 0, 0], pROI[3, 0, 1], pROI[3, 0, 2], pROI[3, 0, 3]]]
 
         # roi_pooling -> batch, wl, hl, wr, hr list
         ROI_feature = roi_pooling(pimg_conv6, rois, pool_height=3, pool_width=3)
@@ -258,10 +254,10 @@ class net:
         # for 4 batch size
         ROI_feature = tf.transpose(ROI_feature, perm=[0, 3, 2, 1])      # batch, height, width, in_channels
         ROI_feature = tf.expand_dims(ROI_feature, axis=4)               # 1 out_channel
-        correlation0 = tf.nn.conv2d(cimg_concat[0, :, :, :], ROI_feature[0], [1, 1, 1, 1], padding='SAME')
-        correlation1 = tf.nn.conv2d(cimg_concat[1, :, :, :], ROI_feature[1], [1, 1, 1, 1], padding='SAME')
-        correlation2 = tf.nn.conv2d(cimg_concat[2, :, :, :], ROI_feature[2], [1, 1, 1, 1], padding='SAME')
-        correlation3 = tf.nn.conv2d(cimg_concat[3, :, :, :], ROI_feature[3], [1, 1, 1, 1], padding='SAME')
+        correlation0 = tf.nn.conv2d(cimg_concat[0, :, :, :, :], ROI_feature[0, :, :, :, :], [1, 1, 1, 1], padding='SAME')
+        correlation1 = tf.nn.conv2d(cimg_concat[1, :, :, :, :], ROI_feature[1, :, :, :, :], [1, 1, 1, 1], padding='SAME')
+        correlation2 = tf.nn.conv2d(cimg_concat[2, :, :, :, :], ROI_feature[2, :, :, :, :], [1, 1, 1, 1], padding='SAME')
+        correlation3 = tf.nn.conv2d(cimg_concat[3, :, :, :, :], ROI_feature[3, :, :, :, :], [1, 1, 1, 1], padding='SAME')
 
         correlation = tf.stack([correlation0, correlation1, correlation2, correlation3], axis=0)    # [batch, 5, H, W, 1]
         correlation = tf.transpose(correlation, perm=[0, 2, 3, 1, 4])
@@ -340,7 +336,8 @@ class net:
                             global_step=self.global_step,
                             save_summaries_secs=60,
                             number_of_steps=training_schedule['max_iter'],
-                            save_interval_secs=600)
+                            save_interval_secs=600,
+                            session_wrapper=tf_debug.LocalCLIDebugWrapperSession)
 
     def test_sequence(self, ckpt, pimg_path, cimg_path, POLICY, pbox, out_path, video_play=True, save_image=False):
 
