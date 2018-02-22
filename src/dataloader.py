@@ -113,6 +113,11 @@ def __get_dataset(dataset_config, split_name):
                 dtype=tf.int32,
                 shape=[4],
                 channels=1),
+            'pROI_anchor': Image(
+                image_key='pROI',
+                dtype=tf.float64,
+                shape=[2],
+                channels=1),
             'confs': Image(
                 image_key='confs',
                 dtype=tf.float64,
@@ -168,19 +173,21 @@ def load_batch(dataset_config, split_name):
             common_queue_capacity=2048,
             common_queue_min=1024,
             reader_kwargs=reader_kwargs)
-        pimg_resize, cimg_resize, pbox_xy, pROI,\
+        pimg_resize, cimg_resize, pbox_xy, pROI, pROI_anchor,\
         confs, coord, areas, upleft, botright = data_provider.get(['pimg_resize',
                                                                    'cimg_resize',
                                                                    'pbox_xy',
                                                                    'pROI',
+                                                                   'pROI_anchor',
                                                                    'confs',
                                                                    'coord',
                                                                    'areas',
                                                                    'upleft',
                                                                    'botright'])
-        pimg_resize, cimg_resize, \
+        pimg_resize, cimg_resize, pROI_anchor,\
         confs, coord, areas, upleft, botright = map(tf.to_float, [pimg_resize,
                                                                   cimg_resize,
+                                                                  pROI_anchor,
                                                                   confs,
                                                                   coord,
                                                                   areas,
@@ -189,11 +196,12 @@ def load_batch(dataset_config, split_name):
         pbox_xy = map(tf.to_int32, [pbox_xy])
         pROI = map(tf.to_int32, [pROI])
 
-        pimg_resize, cimg_resize, pbox_xy, pROI,\
+        pimg_resize, cimg_resize, pbox_xy, pROI, pROI_anchor, \
         confs, coord, areas, upleft, botright = map(lambda x: tf.expand_dims(x, 0), [pimg_resize,
                                                                                      cimg_resize,
                                                                                      pbox_xy,
                                                                                      pROI,
+                                                                                     pROI_anchor,
                                                                                      confs,
                                                                                      coord,
                                                                                      areas,
@@ -204,7 +212,7 @@ def load_batch(dataset_config, split_name):
 
         # with tf.device('/cpu:0'):
 
-        return tf.train.batch([pimg_resize, cimg_resize, pbox_xy, pROI,
+        return tf.train.batch([pimg_resize, cimg_resize, pbox_xy, pROI, pROI_anchor,
                                confs, coord, areas, upleft, botright],
                               enqueue_many=True,
                               batch_size=dataset_config['BATCH_SIZE'],

@@ -18,7 +18,7 @@ schedule_verbose(POLICY, data_type)
 
 # data loader
 # TODO, dimension check
-pimg_resize, cimg_resize, pbox_xy, pROI,\
+pimg_resize, cimg_resize, pbox_xy, pROI, pROI_anchor,\
     confs, coord, areas, upleft, botright = load_batch(POLICY, data_type)
 
 # check ckpt variable
@@ -31,6 +31,7 @@ Tracker.train(log_dir=log_dir,
               cimg_resize=cimg_resize,
               pbox_xy=pbox_xy,
               pROI=pROI,
+              pROI_anchor=pROI_anchor,
               confs=confs,
               coord=coord,
               areas=areas,

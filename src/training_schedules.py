@@ -56,7 +56,7 @@ POLICY = {
         'sample': 196,
     },
     'PATHS': {
-        'train': './data/tfrecords/train_1_adj.tfrecords',
+        'train': './data/tfrecords/train_1_adj_vot2015_ROI.tfrecords',
         'validate': './data/tfrecords/fc_val.tfrecords',
         'sample': './data/tfrecords/train_1_adj_sample.tfrecords',
     },
@@ -71,7 +71,7 @@ POLICY_TEST = {
     'side': 13,
     'channels': 3,
 
-    'thresh':  .6,
+    'thresh':  .1,
     'num': 1,
     'anchors': [3.42, 4.41],
 

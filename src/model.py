@@ -278,7 +278,7 @@ class net:
         return net_out
 
     def train(self, log_dir, training_schedule, pimg_resize, cimg_resize,
-              pbox_xy, pROI, confs, coord, areas, upleft, botright, ckpt, debug=True):
+              pbox_xy, pROI, pROI_anchor, confs, coord, areas, upleft, botright, ckpt, debug=True):
 
         if debug:
             tf.summary.image("pimg", pimg_resize, max_outputs=2)
@@ -314,7 +314,7 @@ class net:
         # calculate_box_tf(cimg_resize, net_out, training_schedule)
 
         # loss
-        total_loss = self.loss(net_out, confs, coord, areas, upleft, botright, training_schedule=training_schedule)
+        total_loss = self.loss(net_out, pROI_anchor, confs, coord, areas, upleft, botright, training_schedule=training_schedule)
         tf.summary.scalar('loss', total_loss)
 
         train_op = slim.learning.create_train_op(total_loss, optimizer, summarize_gradients=True)
@@ -331,13 +331,12 @@ class net:
         # TODO,  tensorboard; if you want to analyze tracking result
         # if debug:
 
-
         slim.learning.train(train_op, log_dir,
                             global_step=self.global_step,
                             save_summaries_secs=60,
                             number_of_steps=training_schedule['max_iter'],
-                            save_interval_secs=600,
-                            session_wrapper=tf_debug.LocalCLIDebugWrapperSession)
+                            save_interval_secs=600)
+                            # session_wrapper=tf_debug.LocalCLIDebugWrapperSession)
 
     def test_sequence(self, ckpt, pimg_path, cimg_path, POLICY, pbox, out_path, video_play=True, save_image=False):
 
@@ -476,7 +475,14 @@ class net:
             end = time.time()
 
         mask = np.zeros(adjusted_net_out[..., 4].shape)
-        mask[int(np.floor(cy)), int(np.floor(cx)), :] = 1.
+        for idx in [-1, 0, 1]:
+            if (int(np.floor(cx)) + idx > H-1) or (int(np.floor(cx)) + idx < 0):
+                continue
+            for idy in [-1, 0, 1]:
+                if (int(np.floor(cy)) + idy > H-1) or (int(np.floor(cy)) + idy < 0):
+                    continue
+                mask[int(np.floor(cy)) + idy, int(np.floor(cx)) + idx, :] = 1.
+        adjusted_net_out[..., 4] = adjusted_net_out[..., 4] * mask
         # for mask
         # top_obj_indexs = np.where(adjusted_net_out[..., 4] == np.max(adjusted_net_out[..., 4]) * mask)
         # top_obj_indexs = np.where(adjusted_net_out[..., 4] == np.max(adjusted_net_out[..., 4]))
@@ -536,7 +542,7 @@ class net:
 
         return adjusted_net_out
 
-    def loss(self, net_out, _confs, _coord, _areas, _upleft, _botright, training_schedule):
+    def loss(self, net_out, pROI_anchor, _confs, _coord, _areas, _upleft, _botright, training_schedule):
         """
         from YOLOv2, link: https://github.com/thtrieu/darkflow
         """
@@ -548,15 +554,28 @@ class net:
         H, W = m['side'], m['side']
         B = m['num']
         HW = H * W  # number of grid cells
-        anchors = m['anchors']
+        # anchors = m['anchors']
+
 
         # Extract the coordinate prediction from net.out
         net_out_reshape = tf.reshape(net_out, [-1, H, W, B, (4 + 1)])
         coords = net_out_reshape[:, :, :, :, :4]
         coords = tf.reshape(coords, [-1, H * W, B, 4])
         adjusted_coords_xy = expit_tensor(coords[:, :, :, 0:2])
-        adjusted_coords_wh = tf.sqrt(
-            tf.exp(coords[:, :, :, 2:4]) * np.reshape(anchors, [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2]) + 1e-8)
+
+        adjusted_coords_wh_0 = tf.sqrt(
+            tf.exp(coords[0:1, :, :, 2:4]) * tf.reshape(pROI_anchor[0, :], [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2]) + 1e-8)
+        adjusted_coords_wh_1 = tf.sqrt(
+            tf.exp(coords[1:2, :, :, 2:4]) * tf.reshape(pROI_anchor[1, :], [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2]) + 1e-8)
+        adjusted_coords_wh_2 = tf.sqrt(
+            tf.exp(coords[2:3, :, :, 2:4]) * tf.reshape(pROI_anchor[2, :], [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2]) + 1e-8)
+        adjusted_coords_wh_3 = tf.sqrt(
+            tf.exp(coords[3:4, :, :, 2:4]) * tf.reshape(pROI_anchor[3, :], [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2]) + 1e-8)
+        adjusted_coords_wh = tf.concat([adjusted_coords_wh_0,
+                                        adjusted_coords_wh_1,
+                                        adjusted_coords_wh_2,
+                                        adjusted_coords_wh_3], axis=0)
+
         coords = tf.concat([adjusted_coords_xy, adjusted_coords_wh], 3)
 
         adjusted_c = expit_tensor(net_out_reshape[:, :, :, :, 4])

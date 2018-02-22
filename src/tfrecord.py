@@ -70,6 +70,10 @@ def _batch(w, h, pbox, cbox, training_schedule, pimg_path, cimg_path):
     pROI = np.array([pbox.x1/w*S, pbox.y1/h*S, pbox.x2/w*S, pbox.y2/h*S], dtype=np.float32)
     pROI = np.floor(pROI).astype(np.int32)
 
+    pROI_w = (pbox.x2 - pbox.x1) / S
+    pROI_h = (pbox.y2 - pbox.y1) / S
+
+    pROI_anchor = np.array([pROI_w, pROI_h], dtype=np.float32)
 
     # cbox
     centerx = .5 * (cbox.x1 + cbox.x2)  # xmin, xmax
@@ -113,6 +117,7 @@ def _batch(w, h, pbox, cbox, training_schedule, pimg_path, cimg_path):
     # value for placeholder at loss layer
     loss_feed_val = {
         'pbox_xy': pbox_xy, 'pROI': pROI,
+        'pROI_anchor': pROI_anchor,
         'confs': confs, 'coord': coord,
         'areas': areas, 'upleft': upleft,
         'botright': botright
@@ -172,6 +177,7 @@ def convert_dataset(FLAGS, name):
 
             pbox_xy = loss_feed_val['pbox_xy']
             pROI = loss_feed_val['pROI']
+            pROI_anchor = loss_feed_val['pROI_anchor']
             confs = loss_feed_val['confs']
             coord = loss_feed_val['coord']
             areas = loss_feed_val['areas']
@@ -180,6 +186,7 @@ def convert_dataset(FLAGS, name):
 
             pbox_xy_raw = pbox_xy.tostring()
             pROI_raw = pROI.tostring()
+            pROI_anchor_raw = pROI_anchor.tostring()
             confs_raw = confs.tostring()
             coord_raw = coord.tostring()
             areas_raw = areas.tostring()
@@ -191,6 +198,7 @@ def convert_dataset(FLAGS, name):
                 'cimg_resize': _bytes_feature(cimg_resize_raw),
                 'pbox_xy': _bytes_feature(pbox_xy_raw),
                 'pROI': _bytes_feature(pROI_raw),
+                'pROI_anchor': _bytes_feature(pROI_anchor_raw),
                 'confs': _bytes_feature(confs_raw),
                 'coord': _bytes_feature(coord_raw),
                 'areas': _bytes_feature(areas_raw),
