@@ -218,7 +218,78 @@ class net:
 
         return net_out
 
-    def model_pred_train_ROI(self, cimg_conv5, cimg_conv6, pimg_conv6, pROI, POLICY, trainable=True, test=False):
+    def model_pred_train_ROI_ori(self, cimg_conv5, cimg_conv6, pimg_conv6, pROI, POLICY, trainable=True, test=False):
+        """
+        Predict final feature map
+        :param pROI: pROI
+        :return net_out: [_, model_size/32, model_size/32, 5]
+                       : tx, ty, tw, th, object_score ... YOLOv2
+        """
+
+        from roi_pooling.roi_pooling_ops import roi_pooling
+        # crop[:, xl:xr, yl:yr, :]
+        # xl, yl, xr, yr = ROI_coordinate,
+        # using first' frames coordinate
+
+
+        # W, H  for 4 batch size
+        # batch, Wl, Hl, WR, HR
+        # rois = []
+        # rois.append(np.append([0], pROI[0][0]))
+        # rois.append(np.append([1], pROI[1][1]))
+        # rois.append(np.append([2], pROI[2][2]))
+        # rois.append(np.append([3], pROI[3][3]))
+
+        print(pROI.shape)
+        rois = [[0, pROI[0, 0, 0], pROI[0, 0, 1], pROI[0, 0, 2], pROI[0, 0, 3]],
+                [1, pROI[1, 0, 0], pROI[1, 0, 1], pROI[1, 0, 2], pROI[1, 0, 3]],
+                [2, pROI[2, 0, 0], pROI[2, 0, 1], pROI[2, 0, 2], pROI[2, 0, 3]],
+                [3, pROI[3, 0, 0], pROI[3, 0, 1], pROI[3, 0, 2], pROI[3, 0, 3]]]
+
+        # roi_pooling -> batch, wl, hl, wr, hr list
+        ROI_feature = roi_pooling(pimg_conv6, rois, pool_height=2, pool_width=2)
+        cimg_conv5 = tf.extract_image_patches(cimg_conv5,
+                                              ksizes=[1, 2, 2, 1],
+                                              strides=[1, 2, 2, 1],
+                                              rates=[1, 1, 1, 1],
+                                              padding='SAME')
+        cimg_conv5_0, cimg_conv5_1, cimg_conv5_2, cimg_conv5_3= tf.split(cimg_conv5, 4, axis=3)
+
+        cimg_concat = tf.stack([cimg_conv5_0,
+                                cimg_conv5_1,
+                                cimg_conv5_2,
+                                cimg_conv5_3,
+                                cimg_conv6], axis=1)           # [batch, 5, H, W, depth]
+
+
+        # for 4 batch size
+        ROI_feature = tf.transpose(ROI_feature, perm=[0, 3, 2, 1])      # batch, height, width, in_channels
+        ROI_feature = tf.expand_dims(ROI_feature, axis=4)               # 1 out_channel
+        correlation0 = tf.nn.conv2d(cimg_concat[0, :, :, :], ROI_feature[0, :, :, :, :], [1, 1, 1, 1], padding='SAME')
+        correlation1 = tf.nn.conv2d(cimg_concat[1, :, :, :], ROI_feature[1, :, :, :, :], [1, 1, 1, 1], padding='SAME')
+        correlation2 = tf.nn.conv2d(cimg_concat[2, :, :, :], ROI_feature[2, :, :, :, :], [1, 1, 1, 1], padding='SAME')
+        correlation3 = tf.nn.conv2d(cimg_concat[3, :, :, :], ROI_feature[3, :, :, :, :], [1, 1, 1, 1], padding='SAME')
+
+        correlation = tf.stack([correlation0, correlation1, correlation2, correlation3], axis=0)    # [batch, 5, H, W, 1]
+        correlation = tf.transpose(correlation, perm=[0, 2, 3, 1, 4])
+        b_, h_, w_, c_, _ = correlation.shape.as_list()
+        correlation = tf.reshape(correlation, shape=[b_, h_, w_, c_])
+
+        tf.summary.image("correlation_0", correlation[:, :, :, 0:1], max_outputs=2)
+        tf.summary.image("correlation_1", correlation[:, :, :, 1:2], max_outputs=2)
+        # tf.summary.text('pROI', pROI)
+        # TODO, FC or 1D conv if you want
+        net_out = conv_linear(correlation, filters=5, kernel=1, scope='conv_final', trainable=trainable)
+        tf.summary.image("objectness", net_out[:, :, :, 4:], max_outputs=2)
+
+        # TODO, get highest object score
+        # softmax,
+
+        # TODO, calculate box with ROI_coordinate
+
+        return net_out
+
+    def model_pred_train_ROI_ori(self, cimg_conv5, cimg_conv6, pimg_conv6, pROI, POLICY, trainable=True, test=False):
         """
         Predict final feature map
         :param pROI: pROI
