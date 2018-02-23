@@ -219,3 +219,12 @@ def load_batch(dataset_config, split_name):
                               capacity=dataset_config['BATCH_SIZE'] * 4,
                               num_threads=num_threads,
                               allow_smaller_final_batch=False)
+
+        # return tf.train.shuffle_batch([pimg_resize, cimg_resize, pbox_xy, pROI, pROI_anchor,
+        #                                confs, coord, areas, upleft, botright],
+        #                               enqueue_many=True,
+        #                               batch_size=dataset_config['BATCH_SIZE'],
+        #                               capacity=3000,                              # 53%, 2000->41%
+        #                               min_after_dequeue=1000,
+        #                               num_threads=num_threads,
+        #                               allow_smaller_final_batch=False)
