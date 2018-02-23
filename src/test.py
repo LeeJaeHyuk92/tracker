@@ -4,13 +4,16 @@ from progressbar import ProgressBar, Percentage, Bar
 from scipy.misc import imread, imresize
 from loader.loader_vot import loader_vot
 import os
-import argparse
+import tensorflow as tf
 from model import net
+import numpy as np
+from src.utils import bcolors
+import cv2
 # DATA_PATH = '/home/jaehyuk/code/own/tracker/data/vot2015'
 
-ckpt = './logs/180209_long_vot2015/model.ckpt-225690'
+ckpt = './logs/180212_long_vot2015_ROI/model.ckpt-1200000'
 # symlink = 'datapath'
-data_dir = './data/vot2015_full'
+data_dir = './data/vot2017'
 # os.symlink(symlink, data_dir)
 result_dir = './result'
 
@@ -34,7 +37,11 @@ objLoaderVot = loader_vot(data_dir)
 videos = objLoaderVot.get_videos()
 video_keys = videos.keys()
 
-once = True
+run_config = tf.ConfigProto()
+run_config.gpu_options.allow_growth = False
+# TODO, FIX, graph g
+
+first = True
 for idx in range(len(videos)):
     video_frames = videos[video_keys[idx]][0]         # ex) bag/*.jpg list
     annot_frames = videos[video_keys[idx]][1]         # ex) bag/groundtruth, rectangle box info
@@ -47,15 +54,15 @@ for idx in range(len(videos)):
         pbox = annot_frames[i]
         cbox = annot_frames[i+1]
 
-
-        if once:
+        if first:
             out = Tracker.test_images(ckpt=ckpt,
                                       pimg_path=pimg_path,
                                       cimg_path=cimg_path,
                                       POLICY=POLICY_TEST,
                                       pbox=pbox,
+                                      first_frame=True,
                                       reuse=False)
-            once = False
+            first = False
 
         else:
             out = Tracker.test_images(ckpt=ckpt,
@@ -63,4 +70,5 @@ for idx in range(len(videos)):
                                       cimg_path=cimg_path,
                                       POLICY=POLICY_TEST,
                                       pbox=pbox,
+                                      first_frame=False,
                                       reuse=True)
