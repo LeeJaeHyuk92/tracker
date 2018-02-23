@@ -11,7 +11,7 @@ from src.utils import bcolors
 import cv2
 # DATA_PATH = '/home/jaehyuk/code/own/tracker/data/vot2015'
 
-ckpt = './logs/180212_long_vot2015_ROI/model.ckpt-1200000'
+ckpt = './logs/180223_short_vot2015_pre_13long/model.ckpt-80000'
 # symlink = 'datapath'
 data_dir = './data/vot2017'
 # os.symlink(symlink, data_dir)

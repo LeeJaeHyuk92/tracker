@@ -75,8 +75,7 @@ class net:
 
         return conv_5, conv_6
 
-
-    def model_pred(self, cimg_conv5, cimg_conv6, pimg_conv6, ROI_coordinate, POLICY, trainable=True, reuse=False, test=False):
+    def model_pred(self, cimg_conv5, cimg_conv6, pimg_conv6, ROI_coordinate, pROI, POLICY, roi_pool=True, trainable=True, reuse=False, test=False):
         """
         Predict final feature map
         :param ROI_coordinate: pbox_xy
@@ -84,19 +83,29 @@ class net:
                        : tx, ty, tw, th, object_score ... YOLOv2
         """
 
-        # crop[:, xl:xr, yl:yr, :]
-        # xl, yl, xr, yr = ROI_coordinate,
-        # using first' frames coordinate
+        if roi_pool:
+            from roi_pooling.roi_pooling_ops import roi_pooling
+            pROI = tf.expand_dims(pROI, 0)
+            pROI = tf.expand_dims(pROI, 0)
+            rois = [[0, pROI[0, 0, 0], pROI[0, 0, 1], pROI[0, 0, 2], pROI[0, 0, 3]]]
 
-        xl = ROI_coordinate[0, 0, 0]
-        yl = ROI_coordinate[0, 0, 1]
-
-        # TODO, ROI 1x1 region
-        xr = xl+1
-        yr = yl+1
+            # roi_pooling -> batch, wl, hl, wr, hr list
+            ROI_feature = roi_pooling(pimg_conv6, rois, pool_height=1, pool_width=1)
+            ROI_feature = tf.transpose(ROI_feature, perm=[0, 3, 2, 1])
 
 
-        ROI_feature = pimg_conv6[:, yl:yr, xl:xr, :]
+        else:
+            # crop[:, xl:xr, yl:yr, :]
+            # xl, yl, xr, yr = ROI_coordinate,
+            # using first' frames coordinate
+            xl = ROI_coordinate[0, 0, 0]
+            yl = ROI_coordinate[0, 0, 1]
+
+            # TODO, ROI 1x1 region
+            xr = xl+1
+            yr = yl+1
+
+            ROI_feature = pimg_conv6[:, yl:yr, xl:xr, :]
 
         # TODO, if ROI is not 1x1, modify this region
         #_, h, w, c = ROI_feature.shape.as_list()
@@ -495,6 +504,13 @@ class net:
         pbox_xy = np.reshape(pbox_xy, [1, 2])
         pbox_xy = tf.expand_dims(pbox_xy, 0)
 
+        pROI = np.array([pbox.x1 / w * W, pbox.y1 / h * H, pbox.x2 / w * W, pbox.y2 / h * H], dtype=np.float32)
+        pROI = np.floor(pROI).astype(np.int32)
+
+        pROI_w = (pbox.x2 - pbox.x1) / W
+        pROI_h = (pbox.y2 - pbox.y1) / H
+        pROI_anchor = np.array([pROI_w, pROI_h], dtype=np.float32)
+
         pimg_trans = pimg[..., [2, 1, 0]]
         cimg_trans = cimg[..., [2, 1, 0]]
         pimg_resize = imresize(pimg_trans, [POLICY['height'], POLICY['width'], 3], POLICY['interpolation'])
@@ -508,13 +524,13 @@ class net:
 
         _, pimg_conv6 = self.model_conv(pimg_resize, trainable=False, reuse=reuse)
         cimg_conv5, cimg_conv6 = self.model_conv(cimg_resize, trainable=False, reuse=True)
-        net_out = self.model_pred(cimg_conv5, cimg_conv6, pimg_conv6, pbox_xy, POLICY, trainable=False, reuse=reuse)
+        net_out = self.model_pred(cimg_conv5, cimg_conv6, pimg_conv6, pbox_xy, pROI, POLICY, roi_pool=True, trainable=False, reuse=reuse)
 
         # calculate box
         net_out_reshape = tf.reshape(net_out, [H, W, B, (4 + 1)])
         coords = net_out_reshape[:, :, :, :4]
         adjusted_coords_xy = expit_tensor(coords[:, :, :, 0:2])
-        adjusted_coords_wh = tf.exp(coords[:, :, :, 2:4]) * np.reshape(anchors, [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2])
+        adjusted_coords_wh = tf.exp(coords[:, :, :, 2:4]) * np.reshape(pROI_anchor, [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2])
 
         adjusted_c = expit_tensor(net_out_reshape[:, :, :, 4:])
 
