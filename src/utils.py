@@ -63,6 +63,7 @@ def ckpt_reader(ckpt, value=False):
     var_to_shape_map = reader.get_variable_to_shape_map()
     print(bcolors.WARNING + "#" * 80 + bcolors.ENDC)
     print(bcolors.WARNING + 'checkpoint' + bcolors.ENDC)
+    print(bcolors.WARNING + ckpt + bcolors.ENDC)
     for key in sorted(var_to_shape_map):
           print("tensor_name: ", key)
 
