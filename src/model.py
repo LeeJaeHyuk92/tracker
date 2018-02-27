@@ -44,7 +44,7 @@ class net:
         self.pbox_xy = tf.placeholder(dtype=tf.int32, shape=[None, 1, 2])
         _, pimg_conv6 = self.model_conv(self.pimg_resize, trainable=False, reuse=False)
         cimg_conv5, cimg_conv6 = self.model_conv(self.cimg_resize, trainable=False, reuse=True)
-        self.net_out = self.model_pred(cimg_conv5, cimg_conv6, pimg_conv6, self.pbox_xy, POLICY, trainable=False, reuse=False)
+        self.net_out = self.model_pred(cimg_conv5, cimg_conv6, pimg_conv6, self.pbox_xy, None, POLICY, roi_pool=None, trainable=False, reuse=False)
 
     def model_conv(self, image, trainable=True, reuse=False):
         """
@@ -487,7 +487,13 @@ class net:
         H, W = POLICY['side'], POLICY['side']
         B = POLICY['num']
         HW = H * W  # number of grid cells
+
         anchors = POLICY['anchors']
+        # pROI_w = (pbox.x2 - pbox.x1) / W
+        # pROI_h = (pbox.y2 - pbox.y1) / H
+        # pROI_anchor = np.array([pROI_w, pROI_h], dtype=np.float32)
+
+
 
         pimg = imread(pimg_path)
         cimg = imread(cimg_path)
@@ -506,10 +512,6 @@ class net:
 
         pROI = np.array([pbox.x1 / w * W, pbox.y1 / h * H, pbox.x2 / w * W, pbox.y2 / h * H], dtype=np.float32)
         pROI = np.floor(pROI).astype(np.int32)
-
-        pROI_w = (pbox.x2 - pbox.x1) / W
-        pROI_h = (pbox.y2 - pbox.y1) / H
-        pROI_anchor = np.array([pROI_w, pROI_h], dtype=np.float32)
 
         pimg_trans = pimg[..., [2, 1, 0]]
         cimg_trans = cimg[..., [2, 1, 0]]
@@ -530,7 +532,7 @@ class net:
         net_out_reshape = tf.reshape(net_out, [H, W, B, (4 + 1)])
         coords = net_out_reshape[:, :, :, :4]
         adjusted_coords_xy = expit_tensor(coords[:, :, :, 0:2])
-        adjusted_coords_wh = tf.exp(coords[:, :, :, 2:4]) * np.reshape(pROI_anchor, [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2])
+        adjusted_coords_wh = tf.exp(coords[:, :, :, 2:4]) * np.reshape(anchors, [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2])
 
         adjusted_c = expit_tensor(net_out_reshape[:, :, :, 4:])
 
@@ -558,6 +560,7 @@ class net:
         # top_obj_indexs = np.where(adjusted_net_out[..., 4] == np.max(adjusted_net_out[..., 4]) * mask)
         # top_obj_indexs = np.where(adjusted_net_out[..., 4] == np.max(adjusted_net_out[..., 4]))
         top_obj_indexs = np.where(adjusted_net_out[..., 4] > POLICY['thresh'])
+
         objectness_s = adjusted_net_out[top_obj_indexs][..., 4]
 
         for idx, objectness in np.ndenumerate(objectness_s):
@@ -625,7 +628,7 @@ class net:
         H, W = m['side'], m['side']
         B = m['num']
         HW = H * W  # number of grid cells
-        # anchors = m['anchors']
+        anchors = m['anchors']
 
 
         # Extract the coordinate prediction from net.out
@@ -633,19 +636,22 @@ class net:
         coords = net_out_reshape[:, :, :, :, :4]
         coords = tf.reshape(coords, [-1, H * W, B, 4])
         adjusted_coords_xy = expit_tensor(coords[:, :, :, 0:2])
+        adjusted_coords_wh = tf.sqrt(
+                 tf.exp(coords[:, :, :, 2:4]) * tf.reshape(anchors, [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2]) + 1e-8)
 
-        adjusted_coords_wh_0 = tf.sqrt(
-            tf.exp(coords[0:1, :, :, 2:4]) * tf.reshape(pROI_anchor[0, :], [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2]) + 1e-8)
-        adjusted_coords_wh_1 = tf.sqrt(
-            tf.exp(coords[1:2, :, :, 2:4]) * tf.reshape(pROI_anchor[1, :], [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2]) + 1e-8)
-        adjusted_coords_wh_2 = tf.sqrt(
-            tf.exp(coords[2:3, :, :, 2:4]) * tf.reshape(pROI_anchor[2, :], [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2]) + 1e-8)
-        adjusted_coords_wh_3 = tf.sqrt(
-            tf.exp(coords[3:4, :, :, 2:4]) * tf.reshape(pROI_anchor[3, :], [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2]) + 1e-8)
-        adjusted_coords_wh = tf.concat([adjusted_coords_wh_0,
-                                        adjusted_coords_wh_1,
-                                        adjusted_coords_wh_2,
-                                        adjusted_coords_wh_3], axis=0)
+        # for prev anchor
+        # adjusted_coords_wh_0 = tf.sqrt(
+        #     tf.exp(coords[0:1, :, :, 2:4]) * tf.reshape(pROI_anchor[0, :], [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2]) + 1e-8)
+        # adjusted_coords_wh_1 = tf.sqrt(
+        #     tf.exp(coords[1:2, :, :, 2:4]) * tf.reshape(pROI_anchor[1, :], [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2]) + 1e-8)
+        # adjusted_coords_wh_2 = tf.sqrt(
+        #     tf.exp(coords[2:3, :, :, 2:4]) * tf.reshape(pROI_anchor[2, :], [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2]) + 1e-8)
+        # adjusted_coords_wh_3 = tf.sqrt(
+        #     tf.exp(coords[3:4, :, :, 2:4]) * tf.reshape(pROI_anchor[3, :], [1, 1, B, 2]) / np.reshape([W, H], [1, 1, 1, 2]) + 1e-8)
+        # adjusted_coords_wh = tf.concat([adjusted_coords_wh_0,
+        #                                 adjusted_coords_wh_1,
+        #                                 adjusted_coords_wh_2,
+        #                                 adjusted_coords_wh_3], axis=0)
 
         coords = tf.concat([adjusted_coords_xy, adjusted_coords_wh], 3)
 

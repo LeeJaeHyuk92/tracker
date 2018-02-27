@@ -172,6 +172,8 @@ def load_batch(dataset_config, split_name):
             num_readers=num_threads,
             common_queue_capacity=2048,
             common_queue_min=1024,
+            shuffle=True,
+            seed=8,
             reader_kwargs=reader_kwargs)
         pimg_resize, cimg_resize, pbox_xy, pROI, pROI_anchor,\
         confs, coord, areas, upleft, botright = data_provider.get(['pimg_resize',
@@ -224,7 +226,7 @@ def load_batch(dataset_config, split_name):
                                        confs, coord, areas, upleft, botright],
                                       enqueue_many=True,
                                       batch_size=dataset_config['BATCH_SIZE'],
-                                      capacity=2000,                              # 53%, 2000->41%
+                                      capacity=2000,                              # 4000-> 53%, 3000-> 47, 2000->41%
                                       min_after_dequeue=1000,
                                       num_threads=num_threads,
                                       allow_smaller_final_batch=False)
